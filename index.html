@@ -98,11 +98,16 @@
             border: 1.5px solid #2c6288;
             color: #2c6288;
         }
+        .btn-info {
+            background: #5b6e8c;
+            color: white;
+        }
         .flex-row {
             display: flex;
             gap: 14px;
             flex-wrap: wrap;
             align-items: center;
+            justify-content: center;
         }
 
         .stats-grid {
@@ -152,6 +157,16 @@
         }
         .correct { color: #15803d; }
         .wrong { color: #b91c1c; }
+        .hint-message {
+            background: #fef9e3;
+            border-left: 4px solid #e6b12e;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            color: #7c5c0c;
+            text-align: left;
+        }
 
         .bottom-nav {
             position: fixed;
@@ -288,6 +303,7 @@
                 <div class="flex-row" style="justify-content: center; gap: 16px;">
                     <button class="btn btn-primary" id="playVoiceBtn" onclick="app.manualPlayCurrent()">🔊 播放语音</button>
                     <button class="btn btn-outline" id="modeActionBtn" onclick="app.handleModeAction()">⚡ 开始/重播</button>
+                    <button class="btn btn-info" onclick="app.showHint()">❓ 疑难提示</button>
                 </div>
 
                 <div id="inputArea" style="margin-top: 28px;">
@@ -299,6 +315,7 @@
                 </div>
 
                 <div id="dictResultArea" class="result-badge"></div>
+                <div id="hintArea" class="hint-message" style="display: none;"></div>
                 <div class="stats-grid" style="margin-top: 20px;">
                     <div>✅ 正确: <strong id="sessionCorrect">0</strong></div>
                     <div>❌ 错误: <strong id="sessionWrong">0</strong></div>
@@ -309,7 +326,7 @@
         </div>
     </div>
 
-    <!-- 设置页面（含语速和纯听模式） -->
+    <!-- 设置页面 -->
     <div id="pageSettings" class="page">
         <div class="header"><button class="back-btn" onclick="app.showPage('pageHome')">← 返回</button><h1>⚙️ 听写设置</h1></div>
         <div class="card">
@@ -335,7 +352,7 @@
         </div>
     </div>
 
-    <!-- 自定义词库管理 + 粘贴生成 -->
+    <!-- 自定义词库管理 -->
     <div id="pageCustomManager" class="page">
         <div class="header"><button class="back-btn" onclick="app.showPage('pageHome')">← 返回</button><h1>📚 我的词库</h1></div>
         <div class="card">
@@ -360,8 +377,112 @@
 
 <script>
     // ------------------------------ 词库数据 ---------------------------------
-    const presetChinese = ["一","二","三","四","五","六","七","八","九","十","人","口","手","足","目","耳","山","石","田","禾","火","木","水","云","风","雨","天","地","上","下","大","小","日","月","爸","妈","我","你","他","好","坏","多","少","爱","学","校","家","国","红","花","草","树","鸟","鱼","虫","马","牛","羊","春","夏","秋","冬","快乐","学习","成长"];
-    const presetEnglish = ["apple","banana","cat","dog","bird","fish","rabbit","sun","moon","star","happy","big","small","red","blue","yellow","teacher","school","book","pen","pencil","mother","father","friend","one","two","three","four","five","run","jump","sing","read","write","love","good","morning"];
+    const chineseFull = [
+        {word:"一",pinyin:"yī",meaning:"数字1"},
+        {word:"二",pinyin:"èr",meaning:"数字2"},
+        {word:"三",pinyin:"sān",meaning:"数字3"},
+        {word:"四",pinyin:"sì",meaning:"数字4"},
+        {word:"五",pinyin:"wǔ",meaning:"数字5"},
+        {word:"六",pinyin:"liù",meaning:"数字6"},
+        {word:"七",pinyin:"qī",meaning:"数字7"},
+        {word:"八",pinyin:"bā",meaning:"数字8"},
+        {word:"九",pinyin:"jiǔ",meaning:"数字9"},
+        {word:"十",pinyin:"shí",meaning:"数字10"},
+        {word:"人",pinyin:"rén",meaning:"人类"},
+        {word:"口",pinyin:"kǒu",meaning:"嘴巴"},
+        {word:"手",pinyin:"shǒu",meaning:"身体部位"},
+        {word:"足",pinyin:"zú",meaning:"脚"},
+        {word:"目",pinyin:"mù",meaning:"眼睛"},
+        {word:"耳",pinyin:"ěr",meaning:"耳朵"},
+        {word:"山",pinyin:"shān",meaning:"地面上高耸的部分"},
+        {word:"石",pinyin:"shí",meaning:"矿石"},
+        {word:"田",pinyin:"tián",meaning:"种庄稼的土地"},
+        {word:"禾",pinyin:"hé",meaning:"稻子"},
+        {word:"火",pinyin:"huǒ",meaning:"燃烧产生的光和热"},
+        {word:"木",pinyin:"mù",meaning:"树木"},
+        {word:"水",pinyin:"shuǐ",meaning:"无色无味的液体"},
+        {word:"云",pinyin:"yún",meaning:"天空中的白色物体"},
+        {word:"风",pinyin:"fēng",meaning:"空气流动"},
+        {word:"雨",pinyin:"yǔ",meaning:"从云层落下的水滴"},
+        {word:"天",pinyin:"tiān",meaning:"天空"},
+        {word:"地",pinyin:"dì",meaning:"地面"},
+        {word:"上",pinyin:"shàng",meaning:"位置在高处"},
+        {word:"下",pinyin:"xià",meaning:"位置在低处"},
+        {word:"大",pinyin:"dà",meaning:"与小相反"},
+        {word:"小",pinyin:"xiǎo",meaning:"与大相反"},
+        {word:"日",pinyin:"rì",meaning:"太阳"},
+        {word:"月",pinyin:"yuè",meaning:"月亮"},
+        {word:"爸",pinyin:"bà",meaning:"父亲"},
+        {word:"妈",pinyin:"mā",meaning:"母亲"},
+        {word:"我",pinyin:"wǒ",meaning:"自己"},
+        {word:"你",pinyin:"nǐ",meaning:"称呼对方"},
+        {word:"他",pinyin:"tā",meaning:"称呼男性"},
+        {word:"好",pinyin:"hǎo",meaning:"优点多"},
+        {word:"坏",pinyin:"huài",meaning:"缺点多"},
+        {word:"多",pinyin:"duō",meaning:"数量大"},
+        {word:"少",pinyin:"shǎo",meaning:"数量小"},
+        {word:"爱",pinyin:"ài",meaning:"喜爱"},
+        {word:"学",pinyin:"xué",meaning:"学习"},
+        {word:"校",pinyin:"xiào",meaning:"学校"},
+        {word:"家",pinyin:"jiā",meaning:"家庭"},
+        {word:"国",pinyin:"guó",meaning:"国家"},
+        {word:"红",pinyin:"hóng",meaning:"红色"},
+        {word:"花",pinyin:"huā",meaning:"花朵"},
+        {word:"草",pinyin:"cǎo",meaning:"小草"},
+        {word:"树",pinyin:"shù",meaning:"树木"},
+        {word:"鸟",pinyin:"niǎo",meaning:"小鸟"},
+        {word:"鱼",pinyin:"yú",meaning:"鱼类"},
+        {word:"虫",pinyin:"chóng",meaning:"昆虫"},
+        {word:"马",pinyin:"mǎ",meaning:"动物"},
+        {word:"牛",pinyin:"niú",meaning:"动物"},
+        {word:"羊",pinyin:"yáng",meaning:"动物"},
+        {word:"春",pinyin:"chūn",meaning:"春天"},
+        {word:"夏",pinyin:"xià",meaning:"夏天"},
+        {word:"秋",pinyin:"qiū",meaning:"秋天"},
+        {word:"冬",pinyin:"dōng",meaning:"冬天"},
+        {word:"快乐",pinyin:"kuài lè",meaning:"开心"},
+        {word:"学习",pinyin:"xué xí",meaning:"获取知识"},
+        {word:"成长",pinyin:"chéng zhǎng",meaning:"长大"}
+    ];
+    const englishFull = [
+        {word:"apple",phonetic:"/ˈæpl/",meaning:"苹果"},
+        {word:"banana",phonetic:"/bəˈnɑːnə/",meaning:"香蕉"},
+        {word:"cat",phonetic:"/kæt/",meaning:"猫"},
+        {word:"dog",phonetic:"/dɔːɡ/",meaning:"狗"},
+        {word:"bird",phonetic:"/bɜːrd/",meaning:"鸟"},
+        {word:"fish",phonetic:"/fɪʃ/",meaning:"鱼"},
+        {word:"rabbit",phonetic:"/ˈræbɪt/",meaning:"兔子"},
+        {word:"sun",phonetic:"/sʌn/",meaning:"太阳"},
+        {word:"moon",phonetic:"/muːn/",meaning:"月亮"},
+        {word:"star",phonetic:"/stɑːr/",meaning:"星星"},
+        {word:"happy",phonetic:"/ˈhæpi/",meaning:"快乐"},
+        {word:"big",phonetic:"/bɪɡ/",meaning:"大的"},
+        {word:"small",phonetic:"/smɔːl/",meaning:"小的"},
+        {word:"red",phonetic:"/red/",meaning:"红色"},
+        {word:"blue",phonetic:"/bluː/",meaning:"蓝色"},
+        {word:"yellow",phonetic:"/ˈjeləʊ/",meaning:"黄色"},
+        {word:"teacher",phonetic:"/ˈtiːtʃər/",meaning:"老师"},
+        {word:"school",phonetic:"/skuːl/",meaning:"学校"},
+        {word:"book",phonetic:"/bʊk/",meaning:"书"},
+        {word:"pen",phonetic:"/pen/",meaning:"钢笔"},
+        {word:"pencil",phonetic:"/ˈpensl/",meaning:"铅笔"},
+        {word:"mother",phonetic:"/ˈmʌðər/",meaning:"妈妈"},
+        {word:"father",phonetic:"/ˈfɑːðər/",meaning:"爸爸"},
+        {word:"friend",phonetic:"/frend/",meaning:"朋友"},
+        {word:"one",phonetic:"/wʌn/",meaning:"一"},
+        {word:"two",phonetic:"/tuː/",meaning:"二"},
+        {word:"three",phonetic:"/θriː/",meaning:"三"},
+        {word:"four",phonetic:"/fɔːr/",meaning:"四"},
+        {word:"five",phonetic:"/faɪv/",meaning:"五"},
+        {word:"run",phonetic:"/rʌn/",meaning:"跑"},
+        {word:"jump",phonetic:"/dʒʌmp/",meaning:"跳"},
+        {word:"sing",phonetic:"/sɪŋ/",meaning:"唱歌"},
+        {word:"read",phonetic:"/riːd/",meaning:"读"},
+        {word:"write",phonetic:"/raɪt/",meaning:"写"},
+        {word:"love",phonetic:"/lʌv/",meaning:"爱"},
+        {word:"good",phonetic:"/ɡʊd/",meaning:"好"},
+        {word:"morning",phonetic:"/ˈmɔːrnɪŋ/",meaning:"早晨"}
+    ];
 
     let customSets = [];
     let currentCustomSetId = null;
@@ -369,12 +490,13 @@
     // 听写全局状态
     let dictationState = {
         active: false,
-        wordList: [],
+        wordList: [],           // 字符串数组
+        wordDetailsMap: new Map(), // 词语 -> 提示文本
         currentIndex: 0,
         correctCount: 0,
         wrongCount: 0,
         type: "custom",
-        waitingForInput: false,   // 是否正在等待输入（自动模式下，播放后进入等待状态）
+        waitingForInput: false,
         inputTimer: null,
         listeningOnly: false
     };
@@ -384,7 +506,7 @@
         intervalSec: 3,
         rate: 1.0,
         voiceGender: "female",
-        dictationMode: "auto",   // auto / manual
+        dictationMode: "auto",
         autoWaitSec: 2,
         listeningOnly: false
     };
@@ -416,11 +538,10 @@
     function saveCustomSets() { localStorage.setItem("customWordSets", JSON.stringify(customSets)); }
     function saveSettingsToLocal() { localStorage.setItem("dictationSettings", JSON.stringify(appSettings)); }
 
-    // 语音播放核心 (所有播放均由用户点击触发)
+    // 语音播放核心
     let currentSpeechCancel = false;
     async function speakText(text, langHint = null) {
         if(!text) return;
-        // 取消任何正在播放的语音，避免重叠
         speechSynthesis.cancel();
         await new Promise(resolve => setTimeout(resolve, 50));
         const isChinese = /[\u4e00-\u9fa5]/.test(text);
@@ -452,13 +573,24 @@
         dictationState.inputTimer = null;
     }
 
-    // 开始听写（初始化）
-    function startDictationWithWords(wordsArray, title, sourceType) {
+    // 显示提示
+    function showHintMessage(msg) {
+        const hintDiv = document.getElementById("hintArea");
+        hintDiv.style.display = "block";
+        hintDiv.innerHTML = msg;
+        setTimeout(() => {
+            hintDiv.style.display = "none";
+        }, 3000);
+    }
+
+    // 开始听写
+    function startDictationWithWords(wordsArray, title, sourceType, detailsMap = null) {
         if(!wordsArray.length) { alert("词库为空，请先添加词语"); return false; }
         if(dictationState.active) app.exitDictation();
         cancelAllTimers();
         dictationState.active = true;
         dictationState.wordList = [...wordsArray];
+        dictationState.wordDetailsMap = detailsMap ? new Map(detailsMap) : new Map();
         dictationState.currentIndex = 0;
         dictationState.correctCount = 0;
         dictationState.wrongCount = 0;
@@ -472,6 +604,7 @@
         document.getElementById("sessionRemain").innerText = wordsArray.length;
         document.getElementById("dictAnswerInput").value = "";
         document.getElementById("dictResultArea").innerHTML = "";
+        document.getElementById("hintArea").style.display = "none";
         document.getElementById("wordDisplayHint").innerHTML = "🎧 听写新词";
         document.getElementById("curIdx").innerText = "1";
         document.getElementById("totalWords").innerText = wordsArray.length;
@@ -489,18 +622,16 @@
         return true;
     }
 
-    // 播放当前单词（用户点击调用）
+    // 播放当前单词
     async function playCurrentWord() {
         if(!dictationState.active) return;
         const word = dictationState.wordList[dictationState.currentIndex];
         if(!word) return;
-        // 播放时，如果处于自动模式且之前有等待定时器，则清除（用户主动重播时取消自动提交）
         if(dictationState.waitingForInput) {
             cancelAllTimers();
             dictationState.waitingForInput = false;
         }
         await speakText(word);
-        // 如果是非纯听且自动模式，播放完成后启动自动提交倒计时
         if(!dictationState.listeningOnly && appSettings.dictationMode === "auto") {
             dictationState.waitingForInput = true;
             document.getElementById("autoStatusTip").innerHTML = `✍️ 请在下框输入答案 (${appSettings.autoWaitSec}秒后自动提交)`;
@@ -540,14 +671,33 @@
             document.getElementById('welcomeUser').innerHTML = `👋 ${name}，坚持每天听写！`;
         },
         startDictation(type) {
-            let words = type === 'chinese' ? [...presetChinese] : [...presetEnglish];
-            startDictationWithWords(words, type === 'chinese' ? "📖 语文听写" : "🇬🇧 英语听写", type);
+            let words = [];
+            let detailsMap = new Map();
+            if(type === 'chinese') {
+                words = chineseFull.map(item => item.word);
+                chineseFull.forEach(item => {
+                    detailsMap.set(item.word, `拼音：${item.pinyin}，释义：${item.meaning}`);
+                });
+                startDictationWithWords(words, "📖 语文听写", "chinese", detailsMap);
+            } else {
+                words = englishFull.map(item => item.word);
+                englishFull.forEach(item => {
+                    detailsMap.set(item.word, `音标：${item.phonetic}，释义：${item.meaning}`);
+                });
+                startDictationWithWords(words, "🇬🇧 英语听写", "english", detailsMap);
+            }
         },
         startCustomDictation() {
-            const words = customSets.find(s => s.id === currentCustomSetId)?.words || [];
-            if(!words.length) { alert("当前自定义词库为空，请先通过「粘贴生成」或新建词库添加词语"); return; }
-            const setName = customSets.find(s=>s.id===currentCustomSetId)?.name || "自定义";
-            startDictationWithWords(words, `✨ ${setName}`, "custom");
+            const set = customSets.find(s => s.id === currentCustomSetId);
+            if(!set || !set.words.length) { alert("当前自定义词库为空，请先通过「粘贴生成」或新建词库添加词语"); return; }
+            const words = [...set.words];
+            const detailsMap = new Map();
+            words.forEach(w => {
+                const isChinese = /[\u4e00-\u9fa5]/.test(w);
+                if(isChinese) detailsMap.set(w, `词语：${w}`);
+                else detailsMap.set(w, `英文单词：${w}`);
+            });
+            startDictationWithWords(words, `✨ ${set.name}`, "custom", detailsMap);
         },
         startSelectedCustomDictation() { this.startCustomDictation(); },
         exitDictation() {
@@ -557,13 +707,14 @@
             dictationState.waitingForInput = false;
             this.showPage('pageHome');
         },
-        manualPlayCurrent() {
+        manualPlayCurrent() { playCurrentWord(); },
+        handleModeAction() { playCurrentWord(); },
+        showHint() {
             if(!dictationState.active) return;
-            playCurrentWord();
-        },
-        handleModeAction() {
-            if(!dictationState.active) return;
-            playCurrentWord();
+            const word = dictationState.wordList[dictationState.currentIndex];
+            let hint = dictationState.wordDetailsMap.get(word);
+            if(!hint) hint = `词语：${word}`;
+            showHintMessage(hint);
         },
         async submitAnswer() {
             if(!dictationState.active || dictationState.listeningOnly) return;
@@ -572,7 +723,6 @@
         },
         async forceSubmitAnswerWithValue(inputValue) {
             if(!dictationState.active || dictationState.listeningOnly) return;
-            // 如果正在等待自动提交，取消定时器
             if(dictationState.waitingForInput) {
                 cancelAllTimers();
                 dictationState.waitingForInput = false;
@@ -588,7 +738,6 @@
                 resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${currentWord}</span>`;
                 dictationState.wrongCount++;
             }
-            // 保存记录
             const today = new Date().toLocaleDateString();
             let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
             if(!records[today]) records[today] = {correct:0, wrong:0};
@@ -599,7 +748,6 @@
             document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
             document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
             
-            // 自动模式下，提交后自动跳转下一题（但需用户手动播放）
             if(appSettings.dictationMode === "auto" && dictationState.active) {
                 if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
                     this.finishDictation();
@@ -612,7 +760,7 @@
         },
         nextWordManually() {
             if(!dictationState.active) return;
-            // 手动模式下（或纯听模式），点击下一词
+            // 手动模式下，无论是否纯听，都允许手动下一词
             if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
                 this.finishDictation();
                 return;
@@ -620,7 +768,7 @@
             dictationState.currentIndex++;
             this.refreshDictationUI();
             if(dictationState.listeningOnly) {
-                // 纯听模式：跳转后自动播放新单词
+                // 纯听模式自动播放新词
                 playCurrentWord();
             } else {
                 document.getElementById("autoStatusTip").innerHTML = "🖱️ 已切换，请点击「播放语音」听取单词";
@@ -634,6 +782,7 @@
                 document.getElementById("dictResultArea").innerHTML = "";
             }
             document.getElementById("wordDisplayHint").innerHTML = "🎧 当前单词已就绪";
+            document.getElementById("hintArea").style.display = "none";
         },
         finishDictation() {
             cancelAllTimers();
@@ -727,7 +876,6 @@
     window.app = app;
     window.onload = () => app.refreshHomeStats();
 
-    // 语速滑块实时显示
     document.getElementById("settingRate")?.addEventListener("input", (e) => {
         document.getElementById("rateValue").innerText = parseFloat(e.target.value).toFixed(2);
     });
