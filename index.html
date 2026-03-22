@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>智慧听写助手 · 优化版</title>
+    <title>智慧听写助手 · 错词本版</title>
     <style>
         * {
             margin: 0;
@@ -243,6 +243,24 @@
             font-family: inherit;
             background: #fefefe;
         }
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .word-badge {
+            background: #eef2ff;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+        }
+        .word-badge.wrong {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
 
         @media (min-width: 768px) {
             .app-container {
@@ -284,6 +302,15 @@
             </div>
         </div>
         <div class="card">
+            <h3>📝 错词本</h3>
+            <div class="flex-row">
+                <button class="btn btn-outline" onclick="app.showWrongWords('chinese')">📖 语文错词本</button>
+                <button class="btn btn-outline" onclick="app.showWrongWords('english')">📖 英语错词本</button>
+                <button class="btn btn-outline" onclick="app.reviewWrongWords('chinese')">🔁 复习语文错词</button>
+                <button class="btn btn-outline" onclick="app.reviewWrongWords('english')">🔁 复习英语错词</button>
+            </div>
+        </div>
+        <div class="card">
             <h3>⚙️ 个性化设置</h3>
             <button class="btn btn-outline" onclick="app.showPage('pageSettings')">🔧 语音/次数/模式</button>
             <button class="btn btn-outline" style="margin-top: 12px;" onclick="app.showPage('pageCustomManager')">📚 自定义词库 + 一键生成</button>
@@ -310,7 +337,7 @@
                     <input type="text" id="dictAnswerInput" class="input-large" placeholder="✍️ 在这里输入答案" autocomplete="off">
                     <div class="flex-row" style="justify-content: center; margin-top: 24px;">
                         <button class="btn btn-success" id="submitBtn" onclick="app.submitAnswer()">✓ 提交答案</button>
-                        <button class="btn btn-primary" id="nextBtn" onclick="app.nextWordManually()" style="display: none;">⏩ 下一词</button>
+                        <button class="btn btn-primary" id="nextBtn" onclick="app.nextWordManually()">⏩ 下一词</button>
                         <button class="btn btn-outline" id="skipBtn" onclick="app.skipWord()" style="display: none;">⏭️ 跳过</button>
                     </div>
                 </div>
@@ -323,6 +350,18 @@
                     <div>📌 剩余: <strong id="sessionRemain">0</strong></div>
                 </div>
                 <div id="autoStatusTip" style="font-size: 14px; background: #f0f6fe; padding: 10px; border-radius: 60px; margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错词本页面 -->
+    <div id="pageWrongWords" class="page">
+        <div class="header"><button class="back-btn" onclick="app.showPage('pageHome')">← 返回</button><h1 id="wrongTitle">错词本</h1></div>
+        <div class="card">
+            <div id="wrongWordsList" class="word-list"></div>
+            <div class="flex-row" style="margin-top: 20px;">
+                <button class="btn btn-primary" id="reviewBtn" onclick="app.startReviewFromPage()">🔁 复习这些错词</button>
+                <button class="btn btn-outline" onclick="app.clearWrongWords()">🗑️ 清空错词本</button>
             </div>
         </div>
     </div>
@@ -494,6 +533,12 @@
     let customSets = [];
     let currentCustomSetId = null;
 
+    // 错词本数据结构
+    let wrongWords = {
+        chinese: [],  // 存储错词字符串
+        english: []
+    };
+
     // 听写全局状态
     let dictationState = {
         active: false,
@@ -502,11 +547,13 @@
         currentIndex: 0,
         correctCount: 0,
         wrongCount: 0,
-        type: "custom",
+        type: "custom",      // 'chinese', 'english', 'custom', 'review_chinese', 'review_english'
         waitingForInput: false,
         inputTimer: null,
         listeningOnly: false,
-        autoContinuousPlay: false  // 纯听模式下自动连续播放标志
+        autoContinuousPlay: false,
+        isReviewMode: false,   // 是否为复习模式（正确后需移除错词）
+        reviewLang: null       // 复习的语言类型
     };
 
     let appSettings = {
@@ -535,6 +582,15 @@
         
         const storedSettings = localStorage.getItem("dictationSettings");
         if(storedSettings) Object.assign(appSettings, JSON.parse(storedSettings));
+        
+        // 加载错词本
+        const storedWrong = localStorage.getItem("wrongWords");
+        if(storedWrong) {
+            wrongWords = JSON.parse(storedWrong);
+        } else {
+            wrongWords = { chinese: [], english: [] };
+        }
+        
         document.getElementById("settingPlayCount").value = appSettings.playCount;
         document.getElementById("settingIntervalSec").value = appSettings.intervalSec;
         document.getElementById("settingRate").value = appSettings.rate;
@@ -545,14 +601,42 @@
         document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly;
         document.getElementById("autoContinuousPlay").checked = appSettings.autoContinuousPlay;
         
-        // 控制自动连续播放选项的显示
         const autoPlayGroup = document.getElementById("autoPlayGroup");
         if(autoPlayGroup) autoPlayGroup.style.display = appSettings.listeningOnly ? "flex" : "none";
     }
+    
+    function saveWrongWords() {
+        localStorage.setItem("wrongWords", JSON.stringify(wrongWords));
+    }
+    
+    function addWrongWord(word, lang) {
+        if(lang !== 'chinese' && lang !== 'english') return;
+        if(!wrongWords[lang].includes(word)) {
+            wrongWords[lang].push(word);
+            saveWrongWords();
+        }
+    }
+    
+    function removeWrongWord(word, lang) {
+        if(lang !== 'chinese' && lang !== 'english') return;
+        const index = wrongWords[lang].indexOf(word);
+        if(index !== -1) {
+            wrongWords[lang].splice(index, 1);
+            saveWrongWords();
+        }
+    }
+    
+    function clearWrongWords(lang) {
+        if(lang === 'chinese') wrongWords.chinese = [];
+        else if(lang === 'english') wrongWords.english = [];
+        else { wrongWords.chinese = []; wrongWords.english = []; }
+        saveWrongWords();
+    }
+    
     function saveCustomSets() { localStorage.setItem("customWordSets", JSON.stringify(customSets)); }
     function saveSettingsToLocal() { localStorage.setItem("dictationSettings", JSON.stringify(appSettings)); }
 
-    // 语音播放核心（修复性别选择）
+    // 语音播放核心
     let currentSpeechCancel = false;
     async function speakText(text, langHint = null) {
         if(!text) return;
@@ -617,8 +701,8 @@
         }, 3000);
     }
 
-    // 开始听写
-    function startDictationWithWords(wordsArray, title, sourceType, detailsMap = null) {
+    // 开始听写（通用）
+    function startDictationWithWords(wordsArray, title, sourceType, detailsMap = null, isReview = false, reviewLang = null) {
         if(!wordsArray.length) { alert("词库为空，请先添加词语"); return false; }
         if(dictationState.active) app.exitDictation();
         cancelAllTimers();
@@ -632,6 +716,8 @@
         dictationState.waitingForInput = false;
         dictationState.listeningOnly = appSettings.listeningOnly;
         dictationState.autoContinuousPlay = appSettings.autoContinuousPlay;
+        dictationState.isReviewMode = isReview;
+        dictationState.reviewLang = reviewLang;
         
         document.getElementById("dictTitle").innerText = title;
         document.getElementById("sessionCorrect").innerText = "0";
@@ -652,16 +738,13 @@
         if(dictationState.listeningOnly) {
             inputArea.style.display = "none";
             submitBtn.style.display = "none";
+            // 纯听模式下始终显示“下一词”按钮
+            nextBtn.style.display = "inline-block";
+            skipBtn.style.display = "none";
             if(dictationState.autoContinuousPlay) {
-                // 纯听自动连续播放模式
-                nextBtn.style.display = "none";
-                skipBtn.style.display = "none";
                 document.getElementById("autoStatusTip").innerHTML = "🎧 纯听自动模式：将自动连续播放所有单词";
-                // 自动开始播放序列
                 setTimeout(() => startAutoContinuousPlay(), 500);
             } else {
-                nextBtn.style.display = "inline-block";
-                skipBtn.style.display = "none";
                 document.getElementById("autoStatusTip").innerHTML = "🎧 纯听手动模式：点击「播放语音」听取，点击「下一词」切换";
             }
         } else {
@@ -683,7 +766,6 @@
     }
 
     // 纯听自动连续播放
-    let autoPlayInterval = null;
     async function startAutoContinuousPlay() {
         if(!dictationState.active || !dictationState.listeningOnly || !dictationState.autoContinuousPlay) return;
         while(dictationState.active && dictationState.currentIndex < dictationState.wordList.length) {
@@ -697,7 +779,6 @@
                 }
                 dictationState.currentIndex++;
                 app.refreshDictationUI();
-                // 等待一小段时间再播放下一个，避免过于急促
                 await new Promise(r => setTimeout(r, 800));
             }
         }
@@ -759,13 +840,13 @@
                 chineseFull.forEach(item => {
                     detailsMap.set(item.word, `拼音：${item.pinyin}，释义：${item.meaning}`);
                 });
-                startDictationWithWords(words, "📖 语文听写", "chinese", detailsMap);
+                startDictationWithWords(words, "📖 语文听写", "chinese", detailsMap, false, null);
             } else {
                 words = englishFull.map(item => item.word);
                 englishFull.forEach(item => {
                     detailsMap.set(item.word, `音标：${item.phonetic}，释义：${item.meaning}`);
                 });
-                startDictationWithWords(words, "🇬🇧 英语听写", "english", detailsMap);
+                startDictationWithWords(words, "🇬🇧 英语听写", "english", detailsMap, false, null);
             }
         },
         startCustomDictation() {
@@ -778,13 +859,69 @@
                 if(isChinese) detailsMap.set(w, `词语：${w}`);
                 else detailsMap.set(w, `英文单词：${w}`);
             });
-            startDictationWithWords(words, `✨ ${set.name}`, "custom", detailsMap);
+            startDictationWithWords(words, `✨ ${set.name}`, "custom", detailsMap, false, null);
         },
         startSelectedCustomDictation() { this.startCustomDictation(); },
+        
+        // 错词本相关
+        showWrongWords(lang) {
+            const title = lang === 'chinese' ? '语文错词本' : '英语错词本';
+            document.getElementById("wrongTitle").innerText = title;
+            const listDiv = document.getElementById("wrongWordsList");
+            const words = wrongWords[lang];
+            if(words.length === 0) {
+                listDiv.innerHTML = '<div style="padding:20px;text-align:center">暂无错词，继续加油！</div>';
+            } else {
+                listDiv.innerHTML = words.map(w => `<div class="word-badge wrong">${w}</div>`).join('');
+            }
+            // 存储当前显示的错词本语言，供复习按钮使用
+            this.currentWrongLang = lang;
+            this.showPage('pageWrongWords');
+        },
+        startReviewFromPage() {
+            if(this.currentWrongLang) {
+                this.reviewWrongWords(this.currentWrongLang);
+            }
+        },
+        reviewWrongWords(lang) {
+            const words = [...wrongWords[lang]];
+            if(words.length === 0) {
+                alert(`🎉 太棒了！${lang === 'chinese' ? '语文' : '英语'}错词本已清空，没有错词需要复习。`);
+                return;
+            }
+            let detailsMap = new Map();
+            // 尝试从预置词库中获取提示信息
+            if(lang === 'chinese') {
+                chineseFull.forEach(item => {
+                    if(words.includes(item.word)) {
+                        detailsMap.set(item.word, `拼音：${item.pinyin}，释义：${item.meaning}`);
+                    }
+                });
+            } else {
+                englishFull.forEach(item => {
+                    if(words.includes(item.word)) {
+                        detailsMap.set(item.word, `音标：${item.phonetic}，释义：${item.meaning}`);
+                    }
+                });
+            }
+            // 对于不在预置词库中的自定义错词，只显示词语本身
+            words.forEach(w => {
+                if(!detailsMap.has(w)) {
+                    detailsMap.set(w, `词语：${w}`);
+                }
+            });
+            startDictationWithWords(words, `📖 ${lang === 'chinese' ? '语文' : '英语'}错词复习`, lang === 'chinese' ? 'review_chinese' : 'review_english', detailsMap, true, lang);
+        },
+        clearWrongWords() {
+            if(confirm(`确定清空${this.currentWrongLang === 'chinese' ? '语文' : '英语'}错词本吗？`)) {
+                clearWrongWords(this.currentWrongLang);
+                this.showWrongWords(this.currentWrongLang);
+            }
+        },
+        
         exitDictation() {
             cancelAllTimers();
             speechSynthesis.cancel();
-            if(autoPlayInterval) clearInterval(autoPlayInterval);
             dictationState.active = false;
             dictationState.waitingForInput = false;
             this.showPage('pageHome');
@@ -810,7 +947,6 @@
             }
             dictationState.currentIndex++;
             this.refreshDictationUI();
-            // 跳过不计分，直接播放下一个
             playCurrentWord();
         },
         async submitAnswer() {
@@ -831,10 +967,28 @@
             if(isCorrect) {
                 resultDiv.innerHTML = `<span class="correct">✅ 正确！很棒！</span>`;
                 dictationState.correctCount++;
+                // 如果是复习模式且正确，从错词本中移除
+                if(dictationState.isReviewMode && dictationState.reviewLang) {
+                    removeWrongWord(currentWord, dictationState.reviewLang);
+                }
             } else {
                 resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${currentWord}</span>`;
                 dictationState.wrongCount++;
+                // 记录错词（非复习模式下）
+                if(!dictationState.isReviewMode) {
+                    let lang = null;
+                    if(dictationState.type === 'chinese') lang = 'chinese';
+                    else if(dictationState.type === 'english') lang = 'english';
+                    else if(dictationState.type === 'review_chinese') lang = 'chinese';
+                    else if(dictationState.type === 'review_english') lang = 'english';
+                    else {
+                        // 自定义词库：尝试根据内容判断语言
+                        lang = /[\u4e00-\u9fa5]/.test(currentWord) ? 'chinese' : 'english';
+                    }
+                    if(lang) addWrongWord(currentWord, lang);
+                }
             }
+            // 保存日常记录（不分语言）
             const today = new Date().toLocaleDateString();
             let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
             if(!records[today]) records[today] = {correct:0, wrong:0};
@@ -852,12 +1006,12 @@
                 }
                 dictationState.currentIndex++;
                 this.refreshDictationUI();
-                // 自动模式下提交后自动播放下一词
                 setTimeout(() => playCurrentWord(), 300);
             }
         },
         nextWordManually() {
             if (!dictationState.active) return;
+            // 纯听模式（手动或自动连续播放已内部处理，这里只处理手动模式）
             if (dictationState.listeningOnly && !dictationState.autoContinuousPlay) {
                 if (dictationState.currentIndex + 1 >= dictationState.wordList.length) {
                     this.finishDictation();
@@ -922,7 +1076,6 @@
             saveSettingsToLocal();
             alert("设置已保存");
             
-            // 控制自动连续播放选项的显示
             const autoPlayGroup = document.getElementById("autoPlayGroup");
             if(autoPlayGroup) autoPlayGroup.style.display = appSettings.listeningOnly ? "flex" : "none";
         },
