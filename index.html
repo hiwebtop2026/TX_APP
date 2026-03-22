@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>智慧听写助手 · 磨耳朵版</title>
+    <title>智慧听写助手 · 稳定语音版</title>
     <style>
         * {
             margin: 0;
@@ -290,7 +290,6 @@
                     <button class="btn btn-outline" id="modeActionBtn" onclick="app.handleModeAction()">⚡ 开始/重播</button>
                 </div>
 
-                <!-- 输入区域，纯听模式下隐藏 -->
                 <div id="inputArea" style="margin-top: 28px;">
                     <input type="text" id="dictAnswerInput" class="input-large" placeholder="✍️ 在这里输入答案" autocomplete="off">
                     <div class="flex-row" style="justify-content: center; margin-top: 24px;">
@@ -324,14 +323,14 @@
                 </div>
             </div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select></div>
-            <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (朗读后自动下一词)</option><option value="manual">手动模式 (需手动下一词)</option></select></div>
+            <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (提交后自动跳转，需手动播放)</option><option value="manual">手动模式 (完全手动下一词)</option></select></div>
             <div class="setting-item">
                 <span>🎧 纯听模式 (隐藏输入框)</span>
                 <label style="display: flex; gap: 8px;">
-                    <input type="checkbox" id="listeningOnlyMode"> 开启后只听不写，自动播放全部单词
+                    <input type="checkbox" id="listeningOnlyMode"> 开启后只听不写，手动切换单词
                 </label>
             </div>
-            <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动朗读后等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
+            <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动提交等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
             <button class="btn btn-primary" style="width:100%" onclick="app.saveSettings()">💾 保存设置</button>
         </div>
     </div>
@@ -375,10 +374,9 @@
         correctCount: 0,
         wrongCount: 0,
         type: "custom",
-        autoSequenceActive: false,
-        nextTimer: null,
-        waitTimer: null,
-        listeningOnly: false   // 纯听模式标志
+        waitingForInput: false,   // 是否正在等待输入（自动模式下，播放后进入等待状态）
+        inputTimer: null,
+        listeningOnly: false
     };
 
     let appSettings = {
@@ -386,7 +384,7 @@
         intervalSec: 3,
         rate: 1.0,
         voiceGender: "female",
-        dictationMode: "auto",
+        dictationMode: "auto",   // auto / manual
         autoWaitSec: 2,
         listeningOnly: false
     };
@@ -414,15 +412,15 @@
         document.getElementById("dictationMode").value = appSettings.dictationMode;
         document.getElementById("autoWaitSec").value = appSettings.autoWaitSec;
         document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly;
-        // 控制等待秒数显示（纯听模式下该选项无意义但保留，界面不隐藏）
     }
     function saveCustomSets() { localStorage.setItem("customWordSets", JSON.stringify(customSets)); }
     function saveSettingsToLocal() { localStorage.setItem("dictationSettings", JSON.stringify(appSettings)); }
 
-    // 语音播放核心 (支持语速)
+    // 语音播放核心 (所有播放均由用户点击触发)
     let currentSpeechCancel = false;
     async function speakText(text, langHint = null) {
         if(!text) return;
+        // 取消任何正在播放的语音，避免重叠
         speechSynthesis.cancel();
         await new Promise(resolve => setTimeout(resolve, 50));
         const isChinese = /[\u4e00-\u9fa5]/.test(text);
@@ -439,7 +437,7 @@
                 const utter = new SpeechSynthesisUtterance(text);
                 utter.lang = lang;
                 if(selectedVoice) utter.voice = selectedVoice;
-                utter.rate = appSettings.rate;   // 语速设置
+                utter.rate = appSettings.rate;
                 utter.onend = () => resolve();
                 utter.onerror = () => resolve();
                 speechSynthesis.speak(utter);
@@ -449,77 +447,24 @@
     }
     function getVoices() { return new Promise((resolve) => { let voices = speechSynthesis.getVoices(); if(voices.length) resolve(voices); else speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices()); }); }
 
-    function cancelAllSpeechAndTimers() {
-        currentSpeechCancel = true;
-        speechSynthesis.cancel();
-        if(dictationState.nextTimer) clearTimeout(dictationState.nextTimer);
-        if(dictationState.waitTimer) clearTimeout(dictationState.waitTimer);
-        dictationState.autoSequenceActive = false;
+    function cancelAllTimers() {
+        if(dictationState.inputTimer) clearTimeout(dictationState.inputTimer);
+        dictationState.inputTimer = null;
     }
 
-    // 自动听写序列（兼容纯听模式）
-    async function startAutoSequence() {
-        if(!dictationState.active) return;
-        if(dictationState.autoSequenceActive) return;
-        cancelAllSpeechAndTimers();
-        dictationState.autoSequenceActive = true;
-        await runCurrentWordAuto();
-    }
-    async function runCurrentWordAuto() {
-        if(!dictationState.active || !dictationState.autoSequenceActive) return;
-        const currentWord = dictationState.wordList[dictationState.currentIndex];
-        if(!currentWord) return;
-        
-        if(dictationState.listeningOnly) {
-            // 纯听模式：只播放，不等待输入，播放完自动下一词
-            document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式 · 正在朗读";
-            await speakText(currentWord);
-            if(!dictationState.active || !dictationState.autoSequenceActive) return;
-            // 自动下一词
-            if(dictationState.nextTimer) clearTimeout(dictationState.nextTimer);
-            dictationState.nextTimer = setTimeout(() => {
-                if(dictationState.active && dictationState.autoSequenceActive) {
-                    if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
-                        app.finishDictation();
-                    } else {
-                        dictationState.currentIndex++;
-                        app.refreshDictationUI();
-                        runCurrentWordAuto();
-                    }
-                }
-            }, 600);
-        } else {
-            // 标准听写模式：朗读后等待输入
-            document.getElementById("autoStatusTip").innerHTML = "🔊 正在朗读，请仔细聆听...";
-            await speakText(currentWord);
-            if(!dictationState.active || !dictationState.autoSequenceActive) return;
-            document.getElementById("autoStatusTip").innerHTML = `✍️ 请在下方输入答案 (${appSettings.autoWaitSec}秒后自动提交)`;
-            dictationState.waitTimer = setTimeout(() => {
-                if(dictationState.active && dictationState.autoSequenceActive) {
-                    const inputField = document.getElementById("dictAnswerInput");
-                    if(inputField.value.trim() === "") {
-                        app.forceSubmitAnswerWithValue("");
-                    } else {
-                        app.submitAnswer();
-                    }
-                }
-            }, appSettings.autoWaitSec * 1000);
-        }
-    }
-
-    // 通用开始听写
+    // 开始听写（初始化）
     function startDictationWithWords(wordsArray, title, sourceType) {
         if(!wordsArray.length) { alert("词库为空，请先添加词语"); return false; }
         if(dictationState.active) app.exitDictation();
-        cancelAllSpeechAndTimers();
+        cancelAllTimers();
         dictationState.active = true;
         dictationState.wordList = [...wordsArray];
         dictationState.currentIndex = 0;
         dictationState.correctCount = 0;
         dictationState.wrongCount = 0;
         dictationState.type = sourceType;
-        dictationState.autoSequenceActive = false;
-        dictationState.listeningOnly = appSettings.listeningOnly;  // 同步设置
+        dictationState.waitingForInput = false;
+        dictationState.listeningOnly = appSettings.listeningOnly;
         
         document.getElementById("dictTitle").innerText = title;
         document.getElementById("sessionCorrect").innerText = "0";
@@ -534,31 +479,45 @@
         const inputArea = document.getElementById("inputArea");
         if(appSettings.listeningOnly) {
             inputArea.style.display = "none";
-            document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式开启 · 自动播放全部单词 · 无需填写答案";
+            document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：点击「播放语音」听取单词，点击「下一词」切换";
         } else {
             inputArea.style.display = "block";
+            document.getElementById("autoStatusTip").innerHTML = "✨ 点击「播放语音」或「开始/重播」听取当前单词";
         }
         
-        const mode = appSettings.dictationMode;
-        if(mode === "auto") {
-            document.getElementById("autoStatusTip").innerHTML = appSettings.listeningOnly ? "🎧 纯听自动模式：点击下方【⚡ 开始自动磨耳朵】" : "✨ 自动模式：点击【⚡ 开始/重播】开始自动听写";
-            document.getElementById("modeActionBtn").innerHTML = "⚡ 开始自动听写";
-            document.getElementById("modeActionBtn").style.background = "#2c6288";
-            document.getElementById("modeActionBtn").style.color = "white";
-        } else {
-            document.getElementById("autoStatusTip").innerHTML = appSettings.listeningOnly ? "🖱️ 纯听手动模式：点击【播放语音】听取单词，手动点击【下一词】" : "🖱️ 手动模式：点击【播放语音】后填写答案，再点【下一词】";
-            document.getElementById("modeActionBtn").innerHTML = "🔁 手动重播";
-            document.getElementById("modeActionBtn").style.background = "";
-            document.getElementById("modeActionBtn").style.color = "#2c6288";
-        }
         app.showPage("pageDictation");
         return true;
     }
 
-    async function manualPlayOnly() {
+    // 播放当前单词（用户点击调用）
+    async function playCurrentWord() {
         if(!dictationState.active) return;
-        const w = dictationState.wordList[dictationState.currentIndex];
-        if(w) await speakText(w);
+        const word = dictationState.wordList[dictationState.currentIndex];
+        if(!word) return;
+        // 播放时，如果处于自动模式且之前有等待定时器，则清除（用户主动重播时取消自动提交）
+        if(dictationState.waitingForInput) {
+            cancelAllTimers();
+            dictationState.waitingForInput = false;
+        }
+        await speakText(word);
+        // 如果是非纯听且自动模式，播放完成后启动自动提交倒计时
+        if(!dictationState.listeningOnly && appSettings.dictationMode === "auto") {
+            dictationState.waitingForInput = true;
+            document.getElementById("autoStatusTip").innerHTML = `✍️ 请在下框输入答案 (${appSettings.autoWaitSec}秒后自动提交)`;
+            dictationState.inputTimer = setTimeout(() => {
+                if(dictationState.active && dictationState.waitingForInput) {
+                    const inputField = document.getElementById("dictAnswerInput");
+                    if(inputField.value.trim() === "") {
+                        app.forceSubmitAnswerWithValue("");
+                    } else {
+                        app.submitAnswer();
+                    }
+                    dictationState.waitingForInput = false;
+                }
+            }, appSettings.autoWaitSec * 1000);
+        } else {
+            document.getElementById("autoStatusTip").innerHTML = "🔊 已播放，请继续";
+        }
     }
 
     const app = {
@@ -592,25 +551,19 @@
         },
         startSelectedCustomDictation() { this.startCustomDictation(); },
         exitDictation() {
-            cancelAllSpeechAndTimers();
+            cancelAllTimers();
+            speechSynthesis.cancel();
             dictationState.active = false;
-            dictationState.autoSequenceActive = false;
+            dictationState.waitingForInput = false;
             this.showPage('pageHome');
         },
-        manualPlayCurrent() { manualPlayOnly(); },
+        manualPlayCurrent() {
+            if(!dictationState.active) return;
+            playCurrentWord();
+        },
         handleModeAction() {
             if(!dictationState.active) return;
-            if(appSettings.dictationMode === "auto") {
-                if(dictationState.autoSequenceActive) {
-                    cancelAllSpeechAndTimers();
-                    dictationState.autoSequenceActive = false;
-                    setTimeout(() => startAutoSequence(), 100);
-                } else {
-                    startAutoSequence();
-                }
-            } else {
-                manualPlayOnly();
-            }
+            playCurrentWord();
         },
         async submitAnswer() {
             if(!dictationState.active || dictationState.listeningOnly) return;
@@ -619,6 +572,11 @@
         },
         async forceSubmitAnswerWithValue(inputValue) {
             if(!dictationState.active || dictationState.listeningOnly) return;
+            // 如果正在等待自动提交，取消定时器
+            if(dictationState.waitingForInput) {
+                cancelAllTimers();
+                dictationState.waitingForInput = false;
+            }
             const currentWord = dictationState.wordList[dictationState.currentIndex];
             if(!currentWord) return;
             const isCorrect = inputValue.toLowerCase() === currentWord.toLowerCase();
@@ -630,9 +588,10 @@
                 resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${currentWord}</span>`;
                 dictationState.wrongCount++;
             }
+            // 保存记录
             const today = new Date().toLocaleDateString();
             let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
-            if(!records[today]) records[today] = {correct:0,wrong:0};
+            if(!records[today]) records[today] = {correct:0, wrong:0};
             if(isCorrect) records[today].correct++;
             else records[today].wrong++;
             localStorage.setItem('dictationRecords', JSON.stringify(records));
@@ -640,44 +599,32 @@
             document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
             document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
             
-            if(appSettings.dictationMode === "auto" && dictationState.active && dictationState.autoSequenceActive) {
-                if(dictationState.nextTimer) clearTimeout(dictationState.nextTimer);
-                dictationState.nextTimer = setTimeout(() => this.nextWordAuto(), 1200);
-            }
-        },
-        nextWordAuto() {
-            if(!dictationState.active || !dictationState.autoSequenceActive) return;
-            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
-                this.finishDictation();
-                return;
-            }
-            dictationState.currentIndex++;
-            this.refreshDictationUI();
-            runCurrentWordAuto();
-        },
-        nextWordManually() {
-            if(!dictationState.active) return;
-            if(dictationState.listeningOnly) {
-                // 纯听手动模式：直接播放下一个单词
+            // 自动模式下，提交后自动跳转下一题（但需用户手动播放）
+            if(appSettings.dictationMode === "auto" && dictationState.active) {
                 if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
                     this.finishDictation();
                     return;
                 }
                 dictationState.currentIndex++;
                 this.refreshDictationUI();
-                manualPlayOnly();
-                return;
+                document.getElementById("autoStatusTip").innerHTML = "✅ 已跳转至下一词，请点击「播放语音」继续";
             }
-            if(appSettings.dictationMode === "auto") { alert("自动模式下请勿手动点击下一词"); return; }
+        },
+        nextWordManually() {
+            if(!dictationState.active) return;
+            // 手动模式下（或纯听模式），点击下一词
             if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
                 this.finishDictation();
                 return;
             }
             dictationState.currentIndex++;
             this.refreshDictationUI();
-            document.getElementById("dictResultArea").innerHTML = "";
-            document.getElementById("dictAnswerInput").value = "";
-            document.getElementById("autoStatusTip").innerHTML = "🖱️ 手动模式，点击【播放语音】后作答";
+            if(dictationState.listeningOnly) {
+                // 纯听模式：跳转后自动播放新单词
+                playCurrentWord();
+            } else {
+                document.getElementById("autoStatusTip").innerHTML = "🖱️ 已切换，请点击「播放语音」听取单词";
+            }
         },
         refreshDictationUI() {
             document.getElementById("curIdx").innerText = dictationState.currentIndex+1;
@@ -686,10 +633,11 @@
                 document.getElementById("dictAnswerInput").value = "";
                 document.getElementById("dictResultArea").innerHTML = "";
             }
-            document.getElementById("wordDisplayHint").innerHTML = "🎧 请听写当前词语";
+            document.getElementById("wordDisplayHint").innerHTML = "🎧 当前单词已就绪";
         },
         finishDictation() {
-            cancelAllSpeechAndTimers();
+            cancelAllTimers();
+            speechSynthesis.cancel();
             alert(`🎉 完成听写！\n正确：${dictationState.correctCount}\n错误：${dictationState.wrongCount}`);
             this.exitDictation();
         },
@@ -705,7 +653,7 @@
             saveSettingsToLocal();
             alert("设置已保存");
         },
-        // 自定义词库
+        // 自定义词库管理
         renderCustomList() {
             const container = document.getElementById("customSetList");
             if(!container) return;
