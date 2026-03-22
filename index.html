@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>智慧听写助手 · 修复男声版</title>
+    <title>智慧听写助手 · 优化版</title>
     <style>
         * {
             margin: 0;
@@ -309,8 +309,9 @@
                 <div id="inputArea" style="margin-top: 28px;">
                     <input type="text" id="dictAnswerInput" class="input-large" placeholder="✍️ 在这里输入答案" autocomplete="off">
                     <div class="flex-row" style="justify-content: center; margin-top: 24px;">
-                        <button class="btn btn-success" onclick="app.submitAnswer()">✓ 提交答案</button>
-                        <button class="btn btn-primary" id="nextBtn" onclick="app.nextWordManually()">⏩ 下一词</button>
+                        <button class="btn btn-success" id="submitBtn" onclick="app.submitAnswer()">✓ 提交答案</button>
+                        <button class="btn btn-primary" id="nextBtn" onclick="app.nextWordManually()" style="display: none;">⏩ 下一词</button>
+                        <button class="btn btn-outline" id="skipBtn" onclick="app.skipWord()" style="display: none;">⏭️ 跳过</button>
                     </div>
                 </div>
 
@@ -340,11 +341,17 @@
                 </div>
             </div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select></div>
-            <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (提交后自动跳转，需手动播放)</option><option value="manual">手动模式 (下一词自动提交并播放)</option></select></div>
+            <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (提交后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
             <div class="setting-item">
                 <span>🎧 纯听模式 (隐藏输入框)</span>
                 <label style="display: flex; gap: 8px;">
-                    <input type="checkbox" id="listeningOnlyMode"> 开启后只听不写，手动切换单词
+                    <input type="checkbox" id="listeningOnlyMode"> 开启后只听不写
+                </label>
+            </div>
+            <div class="setting-item" id="autoPlayGroup" style="display: none;">
+                <span>🔁 自动连续播放 (纯听模式专用)</span>
+                <label style="display: flex; gap: 8px;">
+                    <input type="checkbox" id="autoContinuousPlay"> 开启后自动播放全部单词
                 </label>
             </div>
             <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动提交等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
@@ -498,7 +505,8 @@
         type: "custom",
         waitingForInput: false,
         inputTimer: null,
-        listeningOnly: false
+        listeningOnly: false,
+        autoContinuousPlay: false  // 纯听模式下自动连续播放标志
     };
 
     let appSettings = {
@@ -508,7 +516,8 @@
         voiceGender: "female",
         dictationMode: "auto",
         autoWaitSec: 2,
-        listeningOnly: false
+        listeningOnly: false,
+        autoContinuousPlay: false
     };
 
     // ---------- 辅助函数 ----------
@@ -534,11 +543,16 @@
         document.getElementById("dictationMode").value = appSettings.dictationMode;
         document.getElementById("autoWaitSec").value = appSettings.autoWaitSec;
         document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly;
+        document.getElementById("autoContinuousPlay").checked = appSettings.autoContinuousPlay;
+        
+        // 控制自动连续播放选项的显示
+        const autoPlayGroup = document.getElementById("autoPlayGroup");
+        if(autoPlayGroup) autoPlayGroup.style.display = appSettings.listeningOnly ? "flex" : "none";
     }
     function saveCustomSets() { localStorage.setItem("customWordSets", JSON.stringify(customSets)); }
     function saveSettingsToLocal() { localStorage.setItem("dictationSettings", JSON.stringify(appSettings)); }
 
-    // 语音播放核心（修复性别选择，使用名称匹配）
+    // 语音播放核心（修复性别选择）
     let currentSpeechCancel = false;
     async function speakText(text, langHint = null) {
         if(!text) return;
@@ -548,41 +562,23 @@
         let lang = langHint || (isChinese ? "zh-CN" : "en-US");
         const voices = await getVoices();
         
-        // 筛选匹配当前语言的语音
         const voicesForLang = voices.filter(v => v.lang.startsWith(lang));
-        
         let selectedVoice = null;
         if (appSettings.voiceGender === "female") {
-            // 常见女声关键词（覆盖 iOS、Android、Windows）
             selectedVoice = voicesForLang.find(v => 
-                v.name.includes('Samantha') || 
-                v.name.includes('Google UK English Female') || 
-                v.name.includes('Microsoft Zira') || 
-                v.name.includes('女') ||
-                v.name.includes('Female') ||
-                v.name.includes('Victoria') ||
-                v.name.includes('Siri')
+                v.name.includes('Samantha') || v.name.includes('Google UK English Female') || 
+                v.name.includes('Microsoft Zira') || v.name.includes('女') || v.name.includes('Female') ||
+                v.name.includes('Victoria') || v.name.includes('Siri')
             );
         } else {
-            // 常见男声关键词
             selectedVoice = voicesForLang.find(v => 
-                v.name.includes('Alex') || 
-                v.name.includes('Google UK English Male') || 
-                v.name.includes('Microsoft David') || 
-                v.name.includes('男') ||
-                v.name.includes('Male') ||
+                v.name.includes('Alex') || v.name.includes('Google UK English Male') || 
+                v.name.includes('Microsoft David') || v.name.includes('男') || v.name.includes('Male') ||
                 v.name.includes('Daniel')
             );
         }
-        
-        // 如果没找到，则使用该语言的第一个语音
-        if (!selectedVoice && voicesForLang.length) {
-            selectedVoice = voicesForLang[0];
-        }
-        // 最终保底
-        if (!selectedVoice && voices.length) {
-            selectedVoice = voices[0];
-        }
+        if (!selectedVoice && voicesForLang.length) selectedVoice = voicesForLang[0];
+        if (!selectedVoice && voices.length) selectedVoice = voices[0];
         
         for(let i=0; i<appSettings.playCount; i++) {
             if(currentSpeechCancel) break;
@@ -612,7 +608,6 @@
         dictationState.inputTimer = null;
     }
 
-    // 显示提示
     function showHintMessage(msg) {
         const hintDiv = document.getElementById("hintArea");
         hintDiv.style.display = "block";
@@ -636,6 +631,7 @@
         dictationState.type = sourceType;
         dictationState.waitingForInput = false;
         dictationState.listeningOnly = appSettings.listeningOnly;
+        dictationState.autoContinuousPlay = appSettings.autoContinuousPlay;
         
         document.getElementById("dictTitle").innerText = title;
         document.getElementById("sessionCorrect").innerText = "0";
@@ -649,21 +645,65 @@
         document.getElementById("totalWords").innerText = wordsArray.length;
         
         const inputArea = document.getElementById("inputArea");
-        if(appSettings.listeningOnly) {
+        const submitBtn = document.getElementById("submitBtn");
+        const nextBtn = document.getElementById("nextBtn");
+        const skipBtn = document.getElementById("skipBtn");
+        
+        if(dictationState.listeningOnly) {
             inputArea.style.display = "none";
-            document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：点击「播放语音」听取单词，点击「下一词」切换";
+            submitBtn.style.display = "none";
+            if(dictationState.autoContinuousPlay) {
+                // 纯听自动连续播放模式
+                nextBtn.style.display = "none";
+                skipBtn.style.display = "none";
+                document.getElementById("autoStatusTip").innerHTML = "🎧 纯听自动模式：将自动连续播放所有单词";
+                // 自动开始播放序列
+                setTimeout(() => startAutoContinuousPlay(), 500);
+            } else {
+                nextBtn.style.display = "inline-block";
+                skipBtn.style.display = "none";
+                document.getElementById("autoStatusTip").innerHTML = "🎧 纯听手动模式：点击「播放语音」听取，点击「下一词」切换";
+            }
         } else {
             inputArea.style.display = "block";
-            document.getElementById("autoStatusTip").innerHTML = appSettings.dictationMode === "auto" 
-                ? "✨ 自动模式：点击「播放语音」听取单词，提交后自动跳转"
-                : "🖱️ 手动模式：点击「下一词」自动提交并播放下一个单词";
+            submitBtn.style.display = "inline-block";
+            if(appSettings.dictationMode === "auto") {
+                nextBtn.style.display = "none";
+                skipBtn.style.display = "inline-block";
+                document.getElementById("autoStatusTip").innerHTML = "✨ 自动模式：点击「播放语音」听取单词，输入答案后点击「提交」自动跳转并播放下一个";
+            } else {
+                nextBtn.style.display = "inline-block";
+                skipBtn.style.display = "none";
+                document.getElementById("autoStatusTip").innerHTML = "🖱️ 手动模式：点击「播放语音」听取单词，点击「下一词」切换";
+            }
         }
         
         app.showPage("pageDictation");
         return true;
     }
 
-    // 播放当前单词
+    // 纯听自动连续播放
+    let autoPlayInterval = null;
+    async function startAutoContinuousPlay() {
+        if(!dictationState.active || !dictationState.listeningOnly || !dictationState.autoContinuousPlay) return;
+        while(dictationState.active && dictationState.currentIndex < dictationState.wordList.length) {
+            const word = dictationState.wordList[dictationState.currentIndex];
+            if(word) {
+                await speakText(word);
+                if(!dictationState.active) break;
+                if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                    app.finishDictation();
+                    return;
+                }
+                dictationState.currentIndex++;
+                app.refreshDictationUI();
+                // 等待一小段时间再播放下一个，避免过于急促
+                await new Promise(r => setTimeout(r, 800));
+            }
+        }
+    }
+
+    // 播放当前单词（自动模式会启动等待输入）
     async function playCurrentWord() {
         if(!dictationState.active) return;
         const word = dictationState.wordList[dictationState.currentIndex];
@@ -744,6 +784,7 @@
         exitDictation() {
             cancelAllTimers();
             speechSynthesis.cancel();
+            if(autoPlayInterval) clearInterval(autoPlayInterval);
             dictationState.active = false;
             dictationState.waitingForInput = false;
             this.showPage('pageHome');
@@ -756,6 +797,21 @@
             let hint = dictationState.wordDetailsMap.get(word);
             if(!hint) hint = `词语：${word}`;
             showHintMessage(hint);
+        },
+        skipWord() {
+            if(!dictationState.active || dictationState.listeningOnly) return;
+            if(dictationState.waitingForInput) {
+                cancelAllTimers();
+                dictationState.waitingForInput = false;
+            }
+            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                this.finishDictation();
+                return;
+            }
+            dictationState.currentIndex++;
+            this.refreshDictationUI();
+            // 跳过不计分，直接播放下一个
+            playCurrentWord();
         },
         async submitAnswer() {
             if(!dictationState.active || dictationState.listeningOnly) return;
@@ -796,24 +852,36 @@
                 }
                 dictationState.currentIndex++;
                 this.refreshDictationUI();
-                document.getElementById("autoStatusTip").innerHTML = "✅ 已跳转至下一词，请点击「播放语音」继续";
+                // 自动模式下提交后自动播放下一词
+                setTimeout(() => playCurrentWord(), 300);
             }
         },
         nextWordManually() {
             if (!dictationState.active) return;
-            
-            // 手动模式下，如果当前单词还没有判分结果，则先自动提交（空值判错）
-            const resultDiv = document.getElementById("dictResultArea");
-            const hasResult = resultDiv.innerHTML.trim() !== "";
-            if (!hasResult && !dictationState.listeningOnly && appSettings.dictationMode === "manual") {
-                const inputVal = document.getElementById("dictAnswerInput").value.trim();
-                this.forceSubmitAnswerWithValue(inputVal);
-                setTimeout(() => {
-                    this.doNextWordManual();
-                }, 300);
+            if (dictationState.listeningOnly && !dictationState.autoContinuousPlay) {
+                if (dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                    this.finishDictation();
+                    return;
+                }
+                dictationState.currentIndex++;
+                this.refreshDictationUI();
+                playCurrentWord();
                 return;
             }
-            this.doNextWordManual();
+            // 手动非纯听模式
+            if (!dictationState.listeningOnly && appSettings.dictationMode === "manual") {
+                const resultDiv = document.getElementById("dictResultArea");
+                const hasResult = resultDiv.innerHTML.trim() !== "";
+                if (!hasResult) {
+                    const inputVal = document.getElementById("dictAnswerInput").value.trim();
+                    this.forceSubmitAnswerWithValue(inputVal);
+                    setTimeout(() => {
+                        this.doNextWordManual();
+                    }, 300);
+                    return;
+                }
+                this.doNextWordManual();
+            }
         },
         doNextWordManual() {
             if (!dictationState.active) return;
@@ -823,13 +891,7 @@
             }
             dictationState.currentIndex++;
             this.refreshDictationUI();
-            if (dictationState.listeningOnly || appSettings.dictationMode === "manual") {
-                setTimeout(() => {
-                    playCurrentWord();
-                }, 100);
-            } else {
-                document.getElementById("autoStatusTip").innerHTML = "🖱️ 已切换，请点击「播放语音」听取单词";
-            }
+            playCurrentWord();
         },
         refreshDictationUI() {
             document.getElementById("curIdx").innerText = dictationState.currentIndex+1;
@@ -856,8 +918,13 @@
             appSettings.dictationMode = document.getElementById("dictationMode").value;
             appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value);
             appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked;
+            appSettings.autoContinuousPlay = document.getElementById("autoContinuousPlay").checked;
             saveSettingsToLocal();
             alert("设置已保存");
+            
+            // 控制自动连续播放选项的显示
+            const autoPlayGroup = document.getElementById("autoPlayGroup");
+            if(autoPlayGroup) autoPlayGroup.style.display = appSettings.listeningOnly ? "flex" : "none";
         },
         // 自定义词库管理
         renderCustomList() {
@@ -935,6 +1002,10 @@
 
     document.getElementById("settingRate")?.addEventListener("input", (e) => {
         document.getElementById("rateValue").innerText = parseFloat(e.target.value).toFixed(2);
+    });
+    document.getElementById("listeningOnlyMode")?.addEventListener("change", (e) => {
+        const autoPlayGroup = document.getElementById("autoPlayGroup");
+        if(autoPlayGroup) autoPlayGroup.style.display = e.target.checked ? "flex" : "none";
     });
 </script>
 </body>
