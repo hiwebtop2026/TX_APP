@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>智慧听写助手 · 田字格手写板</title>
+    <title>智慧听写助手 · 标准田字格手写板</title>
     <style>
         * {
             margin: 0;
@@ -128,37 +128,41 @@
         .tian-grid-container {
             background: #fffef7;
             border-radius: 32px;
-            padding: 16px 12px;
+            padding: 20px 12px;
             margin: 16px 0;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         .tian-grid {
             display: flex;
             justify-content: center;
-            gap: 16px;
+            gap: 20px;
             flex-wrap: wrap;
             align-items: center;
         }
+        /* 单个田字格：实线边框 + 内部虚线米字 (通过伪元素SVG实现) */
         .tian-cell {
             position: relative;
-            width: 85px;
-            height: 85px;
+            width: 110px;
+            height: 110px;
             background: white;
-            border: 2px solid #c2b280;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            transition: all 0.1s;
-            cursor: pointer;
-            /* 米字格虚线 (田字格效果) */
-            background-image: 
-                linear-gradient(to right, #e2dccd 1px, transparent 1px),
-                linear-gradient(to bottom, #e2dccd 1px, transparent 1px),
-                linear-gradient(45deg, #f0ebda 1px, transparent 1px),
-                linear-gradient(135deg, #f0ebda 1px, transparent 1px);
-            background-size: 50% 50%, 50% 50%, 70% 70%, 70% 70%;
-            background-position: center center;
-            background-repeat: no-repeat;
+            border: 2px solid #b87c4f;   /* 实线边框 */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            cursor: text;
         }
-        /* 内嵌手写input，完全透明且不弹出系统键盘 */
+        /* 虚线米字格 SVG 背景 (覆盖整个格子，点击穿透) */
+        .tian-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cline x1='50' y1='0' x2='50' y2='100' stroke='%23c0a080' stroke-width='1.2' stroke-dasharray='5 5'/%3E%3Cline x1='0' y1='50' x2='100' y2='50' stroke='%23c0a080' stroke-width='1.2' stroke-dasharray='5 5'/%3E%3Cline x1='0' y1='0' x2='100' y2='100' stroke='%23c0a080' stroke-width='1' stroke-dasharray='4 6'/%3E%3Cline x1='0' y1='100' x2='100' y2='0' stroke='%23c0a080' stroke-width='1' stroke-dasharray='4 6'/%3E%3C/svg%3E");
+            background-size: 100% 100%;
+            pointer-events: none;   /* 让点击穿透到 input */
+            z-index: 1;
+        }
+        /* 手写输入框置于上方，可点击输入 */
         .handwrite-input {
             position: absolute;
             top: 0;
@@ -168,31 +172,26 @@
             background: transparent;
             border: none;
             text-align: center;
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 500;
             font-family: 'KaiTi', '华文楷书', '楷体', 'PingFang SC', cursive;
             color: #2d3e50;
-            caret-color: transparent;
+            caret-color: #2c6288;
             outline: none;
             padding: 0;
             margin: 0;
-            line-height: 85px;
+            line-height: 110px;
             letter-spacing: 2px;
-            /* 隐藏输入法关键 */
-            inputmode: none;
+            inputmode: text;
             -webkit-user-select: text;
             user-select: text;
             pointer-events: auto;
+            z-index: 2;
         }
         .handwrite-input:focus {
             background: rgba(200, 220, 240, 0.2);
             outline: none;
         }
-        /* 兼容iOS: 完全禁用键盘弹出 */
-        .handwrite-input {
-            -webkit-touch-callout: default;
-        }
-        /* 提示栏 */
         .handwrite-tip {
             font-size: 13px;
             color: #b87333;
@@ -202,15 +201,17 @@
             border-radius: 60px;
             margin-top: 12px;
         }
-        .input-large {
+        /* 普通输入框（英语模式） */
+        .normal-input {
+            width: 90%;
             font-size: 32px;
             padding: 20px 24px;
             text-align: center;
             border-radius: 80px;
             border: 2px solid #cbdbe6;
-            width: 100%;
             background: white;
             font-weight: 500;
+            margin: 20px auto;
         }
         .result-badge { font-size: 1.4rem; margin: 16px 0; font-weight: bold; }
         .correct { color: #15803d; }
@@ -308,14 +309,15 @@
         }
         .word-badge.wrong { background: #fee2e2; color: #b91c1c; }
         @media (max-width: 550px) {
-            .tian-cell { width: 70px; height: 70px; }
-            .handwrite-input { font-size: 40px; line-height: 70px; }
+            .tian-cell { width: 80px; height: 80px; }
+            .handwrite-input { font-size: 42px; line-height: 80px; }
+            .normal-input { font-size: 24px; padding: 16px; }
         }
         @media (min-width: 768px) {
             .app-container { border-radius: 32px; margin: 20px auto; min-height: auto; }
             .big-hint { font-size: 88px; }
-            .tian-cell { width: 100px; height: 100px; }
-            .handwrite-input { font-size: 56px; line-height: 100px; }
+            .tian-cell { width: 130px; height: 130px; }
+            .handwrite-input { font-size: 68px; line-height: 130px; }
         }
     </style>
 </head>
@@ -355,7 +357,7 @@
         </div>
     </div>
 
-    <!-- 听写页面 (田字格手写版) -->
+    <!-- 听写页面 (动态输入区) -->
     <div id="pageDictation" class="page">
         <div class="header" style="padding: 18px 24px;">
             <button class="back-btn" data-exit-dictation>← 返回</button>
@@ -371,17 +373,14 @@
                     <button class="btn btn-info" id="hintBtn">❓ 疑难提示</button>
                 </div>
                 
-                <!-- 田字格手写区域 (动态生成) -->
-                <div id="tianGridArea" class="tian-grid-container">
-                    <div id="tianGridWrapper" class="tian-grid"></div>
-                    <div class="handwrite-tip">✍️ 点击田字格，一笔一划直接书写 (键盘已隐藏)</div>
-                </div>
+                <!-- 动态输入区域：根据模式切换田字格或普通输入框 -->
+                <div id="dynamicInputArea"></div>
 
                 <div class="flex-row" style="justify-content: center; gap: 16px; margin-top: 8px;">
                     <button class="btn btn-success" id="submitBtn">✓ 提交答案</button>
                     <button class="btn btn-primary" id="nextBtn" style="display: none;">⏩ 下一词</button>
                     <button class="btn btn-outline" id="skipBtn" style="display: none;">⏭️ 跳过</button>
-                    <button class="btn btn-outline" id="clearGridBtn">🧽 清空田字格</button>
+                    <button class="btn btn-outline" id="clearInputBtn">🧽 清空输入</button>
                 </div>
                 <div id="dictResultArea" class="result-badge"></div>
                 <div id="hintArea" class="hint-message" style="display: none;"></div>
@@ -415,7 +414,7 @@
             <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select></div>
             <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (提交后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
-            <div class="setting-item"><span>🎧 纯听模式 (隐藏田字格)</span><label><input type="checkbox" id="listeningOnlyMode"> 开启后只听不写</label></div>
+            <div class="setting-item"><span>🎧 纯听模式 (隐藏输入)</span><label><input type="checkbox" id="listeningOnlyMode"> 开启后只听不写</label></div>
             <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动提交等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
             <button class="btn btn-primary" style="width:100%" id="saveSettingsBtn">💾 保存设置</button>
         </div>
@@ -439,12 +438,12 @@
 </div>
 
 <script>
-    // ---------- 基础数据 (与原逻辑相同) ----------
+    // ---------- 数据 ----------
     const chineseFull = [{word:"一",pinyin:"yī",meaning:"数字1"},{word:"二",pinyin:"èr",meaning:"数字2"},{word:"三",pinyin:"sān",meaning:"数字3"},{word:"四",pinyin:"sì",meaning:"数字4"},{word:"五",pinyin:"wǔ",meaning:"数字5"},{word:"六",pinyin:"liù",meaning:"数字6"},{word:"七",pinyin:"qī",meaning:"数字7"},{word:"八",pinyin:"bā",meaning:"数字8"},{word:"九",pinyin:"jiǔ",meaning:"数字9"},{word:"十",pinyin:"shí",meaning:"数字10"},{word:"人",pinyin:"rén",meaning:"人类"},{word:"口",pinyin:"kǒu",meaning:"嘴巴"},{word:"手",pinyin:"shǒu",meaning:"手"},{word:"水",pinyin:"shuǐ",meaning:"液体"},{word:"火",pinyin:"huǒ",meaning:"燃烧"},{word:"山",pinyin:"shān",meaning:"高山"},{word:"云",pinyin:"yún",meaning:"云朵"},{word:"风",pinyin:"fēng",meaning:"空气流动"},{word:"雨",pinyin:"yǔ",meaning:"雨水"},{word:"天",pinyin:"tiān",meaning:"天空"},{word:"地",pinyin:"dì",meaning:"大地"},{word:"爸",pinyin:"bà",meaning:"父亲"},{word:"妈",pinyin:"mā",meaning:"母亲"},{word:"爱",pinyin:"ài",meaning:"喜爱"},{word:"学",pinyin:"xué",meaning:"学习"},{word:"快乐",pinyin:"kuài lè",meaning:"开心"}];
     const englishFull = [{word:"apple",phonetic:"/ˈæpl/",meaning:"苹果"},{word:"banana",phonetic:"/bəˈnɑːnə/",meaning:"香蕉"},{word:"cat",phonetic:"/kæt/",meaning:"猫"},{word:"dog",phonetic:"/dɔːɡ/",meaning:"狗"},{word:"sun",phonetic:"/sʌn/",meaning:"太阳"},{word:"moon",phonetic:"/muːn/",meaning:"月亮"},{word:"happy",phonetic:"/ˈhæpi/",meaning:"快乐"},{word:"big",phonetic:"/bɪɡ/",meaning:"大"},{word:"small",phonetic:"/smɔːl/",meaning:"小"},{word:"red",phonetic:"/red/",meaning:"红色"},{word:"blue",phonetic:"/bluː/",meaning:"蓝色"},{word:"teacher",phonetic:"/ˈtiːtʃər/",meaning:"老师"},{word:"school",phonetic:"/skuːl/",meaning:"学校"},{word:"book",phonetic:"/bʊk/",meaning:"书"},{word:"friend",phonetic:"/frend/",meaning:"朋友"}];
     let customSets = [], currentCustomSetId = null;
     let wrongWords = { chinese: [], english: [] };
-    let dictationState = { active: false, wordList: [], wordDetailsMap: new Map(), currentIndex: 0, correctCount: 0, wrongCount: 0, type: "custom", waitingForInput: false, inputTimer: null, listeningOnly: false, isReviewMode: false, reviewLang: null, isSubmitting: false };
+    let dictationState = { active: false, wordList: [], wordDetailsMap: new Map(), currentIndex: 0, correctCount: 0, wrongCount: 0, type: "custom", waitingForInput: false, inputTimer: null, listeningOnly: false, isReviewMode: false, reviewLang: null, isSubmitting: false, useTianZiGe: true };
     let appSettings = { playCount: 3, intervalSec: 3, rate: 1.0, voiceGender: "female", dictationMode: "auto", autoWaitSec: 2, listeningOnly: false };
     let currentWrongLang = "chinese";
 
@@ -488,102 +487,125 @@
     }
     function cancelSpeech() { speechCancelFlag = true; speechSynthesis.cancel(); }
 
-    // 田字格渲染核心: 根据当前词的长度(2-4个格)，超过4显示4格，低于2按实际(比如单字显示1格)
-    function renderTianGrid(word) {
-        const wrapper = document.getElementById("tianGridWrapper");
-        if(!wrapper) return;
-        if(dictationState.listeningOnly) { wrapper.innerHTML = '<div style="padding:16px;color:#888;">纯听模式，无需书写</div>'; return; }
-        let chars = Array.from(word); // 支持中文/英文拆分
-        let gridCount = chars.length;
-        if(gridCount > 4) gridCount = 4;   // 最多4个田字格
-        if(gridCount < 1) gridCount = 1;
-        wrapper.innerHTML = '';
-        for(let i=0; i<gridCount; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'tian-cell';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'handwrite-input';
-            input.setAttribute('inputmode', 'none');  // 隐藏软键盘 (关键)
-            input.setAttribute('autocomplete', 'off');
-            input.setAttribute('autocapitalize', 'off');
-            input.setAttribute('autocorrect', 'off');
-            input.setAttribute('spellcheck', 'false');
-            input.maxLength = 1;
-            // 原有字符预填充(针对重新播放不清空)
-            input.value = '';
-            input.placeholder = '✍️';
-            // 阻止任何可能导致键盘的行为
-            input.addEventListener('focus', (e) => {
-                // 强行blur再focus? 但会导致无法输入，实际上inputmode=none已经阻止大部分键盘，但还要确保不弹窗
-                // 让用户可以输入物理键盘或者手写笔输入 (但系统键盘隐藏)
-                // 不做额外处理，保留光标但不会弹出虚拟键盘，达到隐藏输入法效果
-            });
-            input.addEventListener('keydown', (e) => {
-                // 允许删除键等
-                if(e.key === 'Backspace' || e.key === 'Delete') return;
-                if(e.key.length === 1 && !/[\u4e00-\u9fa5a-zA-Z0-9]/.test(e.key)) e.preventDefault();
-            });
-            cell.appendChild(input);
-            wrapper.appendChild(cell);
+    // 动态输入区域渲染 (田字格或普通框)
+    function renderInputArea() {
+        const container = document.getElementById("dynamicInputArea");
+        if(!container) return;
+        if(dictationState.listeningOnly) {
+            container.innerHTML = '<div style="padding:20px;color:#888;text-align:center;">🎧 纯听模式，无需书写</div>';
+            return;
         }
-        // 若格子数小于原始字数，补充提示
-        if(word.length > gridCount) {
-            let tipSpan = document.createElement('div');
-            tipSpan.style.width = '100%';
-            tipSpan.style.fontSize = '12px';
-            tipSpan.style.color = '#b45309';
-            tipSpan.innerText = `⚠️ 词语较长，请在前${gridCount}格书写核心部分，完整答案需匹配全词`;
-            wrapper.appendChild(tipSpan);
+        if(dictationState.useTianZiGe) {
+            // 田字格模式
+            const currentWord = dictationState.wordList[dictationState.currentIndex];
+            let chars = Array.from(currentWord);
+            let gridCount = chars.length;
+            if(gridCount > 4) gridCount = 4;
+            if(gridCount < 1) gridCount = 1;
+            let html = `<div class="tian-grid-container"><div class="tian-grid" id="tianGridWrapper">`;
+            for(let i=0; i<gridCount; i++) {
+                html += `<div class="tian-cell"><input type="text" class="handwrite-input" maxlength="1" placeholder=" " autocomplete="off" inputmode="text"></div>`;
+            }
+            html += `</div><div class="handwrite-tip">✍️ 点击格子，一笔一划书写 (实线边框 + 虚线米字格)</div>`;
+            if(currentWord.length > gridCount) html += `<div style="font-size:12px;color:#b45309;margin-top:8px;">⚠️ 词语较长，请在前${gridCount}格书写，答案需匹配全词</div>`;
+            html += `</div>`;
+            container.innerHTML = html;
+            // 自动聚焦第一个格子
+            setTimeout(() => { const first = container.querySelector('.handwrite-input'); if(first) first.focus(); }, 50);
+        } else {
+            // 普通输入框模式
+            container.innerHTML = `<input type="text" id="normalAnswerInput" class="normal-input" placeholder="✍️ 在这里输入答案" autocomplete="off" inputmode="text">`;
+            setTimeout(() => { const inp = document.getElementById("normalAnswerInput"); if(inp) inp.focus(); }, 50);
         }
-    }
-    // 获取田字格组合的答案
-    function getAnswerFromGrid() {
-        if(dictationState.listeningOnly) return '';
-        const inputs = document.querySelectorAll('#tianGridWrapper .handwrite-input');
-        let answer = '';
-        inputs.forEach(inp => { answer += inp.value.trim(); });
-        return answer;
-    }
-    function clearGrid() {
-        document.querySelectorAll('#tianGridWrapper .handwrite-input').forEach(inp => inp.value = '');
-    }
-    function refreshGridByCurrentWord() {
-        if(!dictationState.active) return;
-        const currentWord = dictationState.wordList[dictationState.currentIndex];
-        if(currentWord) renderTianGrid(currentWord);
     }
 
-    // 核心听写控制 (整合田字格)
+    function getAnswerFromInput() {
+        if(dictationState.listeningOnly) return '';
+        if(dictationState.useTianZiGe) {
+            let answer = '';
+            const inputs = document.querySelectorAll('#dynamicInputArea .handwrite-input');
+            inputs.forEach(inp => answer += inp.value.trim());
+            return answer;
+        } else {
+            const inp = document.getElementById("normalAnswerInput");
+            return inp ? inp.value.trim() : '';
+        }
+    }
+
+    function clearInput() {
+        if(dictationState.useTianZiGe) {
+            document.querySelectorAll('#dynamicInputArea .handwrite-input').forEach(inp => inp.value = '');
+        } else {
+            const inp = document.getElementById("normalAnswerInput");
+            if(inp) inp.value = '';
+        }
+    }
+
+    // 判断词库是否应该使用田字格 (中文优先)
+    function shouldUseTianZiGe(wordList, sourceType) {
+        if(sourceType === 'english') return false;
+        if(sourceType === 'chinese') return true;
+        for(let w of wordList) {
+            if(/[\u4e00-\u9fa5]/.test(w)) return true;
+        }
+        return false;
+    }
+
+    // 听写启动
     function startDictationWithWords(wordsArray, title, sourceType, detailsMap, isReview = false, reviewLang = null) {
         if(!wordsArray.length) { alert("词库为空，请先添加词语"); return false; }
         if(dictationState.active) exitDictation();
         cancelDictTimers(); cancelSpeech();
-        dictationState.active = true; dictationState.wordList = [...wordsArray]; dictationState.wordDetailsMap = detailsMap ? new Map(detailsMap) : new Map();
-        dictationState.currentIndex = 0; dictationState.correctCount = 0; dictationState.wrongCount = 0; dictationState.type = sourceType;
-        dictationState.waitingForInput = false; dictationState.isReviewMode = isReview; dictationState.reviewLang = reviewLang; dictationState.isSubmitting = false;
+        dictationState.active = true;
+        dictationState.wordList = [...wordsArray];
+        dictationState.wordDetailsMap = detailsMap ? new Map(detailsMap) : new Map();
+        dictationState.currentIndex = 0;
+        dictationState.correctCount = 0;
+        dictationState.wrongCount = 0;
+        dictationState.type = sourceType;
+        dictationState.waitingForInput = false;
+        dictationState.isReviewMode = isReview;
+        dictationState.reviewLang = reviewLang;
+        dictationState.isSubmitting = false;
         dictationState.listeningOnly = appSettings.listeningOnly;
-        document.getElementById("dictTitle").innerText = title;
-        document.getElementById("sessionCorrect").innerText = "0"; document.getElementById("sessionWrong").innerText = "0";
-        document.getElementById("sessionRemain").innerText = wordsArray.length;
-        document.getElementById("dictResultArea").innerHTML = ""; document.getElementById("hintArea").style.display = "none";
-        document.getElementById("wordDisplayHint").innerHTML = "🎧 准备就绪"; document.getElementById("curIdx").innerText = "1"; document.getElementById("totalWords").innerText = wordsArray.length;
+        dictationState.useTianZiGe = !dictationState.listeningOnly && shouldUseTianZiGe(wordsArray, sourceType);
         
-        const tianArea = document.getElementById("tianGridArea");
+        document.getElementById("dictTitle").innerText = title;
+        document.getElementById("sessionCorrect").innerText = "0";
+        document.getElementById("sessionWrong").innerText = "0";
+        document.getElementById("sessionRemain").innerText = wordsArray.length;
+        document.getElementById("dictResultArea").innerHTML = "";
+        document.getElementById("hintArea").style.display = "none";
+        document.getElementById("wordDisplayHint").innerHTML = "🎧 准备就绪";
+        document.getElementById("curIdx").innerText = "1";
+        document.getElementById("totalWords").innerText = wordsArray.length;
+        
         const submitBtn = document.getElementById("submitBtn"), nextBtn = document.getElementById("nextBtn"), skipBtn = document.getElementById("skipBtn");
         if(dictationState.listeningOnly) {
-            tianArea.style.display = "none"; submitBtn.style.display = "none"; nextBtn.style.display = "inline-block"; skipBtn.style.display = "none";
+            document.getElementById("dynamicInputArea").style.display = "none";
+            submitBtn.style.display = "none";
+            nextBtn.style.display = "inline-block";
+            skipBtn.style.display = "none";
             document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：点击下一词切换";
         } else {
-            tianArea.style.display = "block"; submitBtn.style.display = "inline-block";
-            if(appSettings.dictationMode === "auto") { nextBtn.style.display = "none"; skipBtn.style.display = "inline-block"; document.getElementById("autoStatusTip").innerHTML = "✨ 自动模式：提交后自动播放下一个"; }
-            else { nextBtn.style.display = "inline-block"; skipBtn.style.display = "none"; document.getElementById("autoStatusTip").innerHTML = "🖱️ 手动模式：点击下一词切换"; }
+            document.getElementById("dynamicInputArea").style.display = "block";
+            submitBtn.style.display = "inline-block";
+            if(appSettings.dictationMode === "auto") {
+                nextBtn.style.display = "none";
+                skipBtn.style.display = "inline-block";
+                document.getElementById("autoStatusTip").innerHTML = "✨ 自动模式：提交后自动播放下一个";
+            } else {
+                nextBtn.style.display = "inline-block";
+                skipBtn.style.display = "none";
+                document.getElementById("autoStatusTip").innerHTML = "🖱️ 手动模式：点击下一词切换";
+            }
         }
         showPage("pageDictation");
-        renderTianGrid(dictationState.wordList[0]);
+        renderInputArea();
         playCurrentWord();
         return true;
     }
+
     async function playCurrentWord() {
         if(!dictationState.active) return;
         if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
@@ -591,25 +613,35 @@
         if(word) await speakText(word);
         if(!dictationState.listeningOnly && appSettings.dictationMode === "auto" && dictationState.active) {
             dictationState.waitingForInput = true;
-            document.getElementById("autoStatusTip").innerHTML = `✍️ 请在田字格中书写答案 (${appSettings.autoWaitSec}秒后自动提交)`;
+            document.getElementById("autoStatusTip").innerHTML = `✍️ 请在输入区作答 (${appSettings.autoWaitSec}秒后自动提交)`;
             dictationState.inputTimer = setTimeout(() => { if(dictationState.active && dictationState.waitingForInput) forceSubmitAnswer(); }, appSettings.autoWaitSec * 1000);
         }
     }
+
     function cancelDictTimers() { if(dictationState.inputTimer) clearTimeout(dictationState.inputTimer); dictationState.inputTimer = null; }
+
     async function forceSubmitAnswer() {
         if(!dictationState.active || dictationState.listeningOnly || dictationState.isSubmitting) return;
         dictationState.isSubmitting = true;
         if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
         const currentWord = dictationState.wordList[dictationState.currentIndex];
-        const inputAnswer = getAnswerFromGrid();
+        const inputAnswer = getAnswerFromInput();
         const isCorrect = inputAnswer.toLowerCase() === currentWord.toLowerCase();
         const resultDiv = document.getElementById("dictResultArea");
-        if(isCorrect) { resultDiv.innerHTML = `<span class="correct">✅ 正确！很棒！</span>`; dictationState.correctCount++;
+        if(isCorrect) {
+            resultDiv.innerHTML = `<span class="correct">✅ 正确！很棒！</span>`;
+            dictationState.correctCount++;
             if(dictationState.isReviewMode && dictationState.reviewLang) removeWrongWord(currentWord, dictationState.reviewLang);
-        } else { resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${escapeHtml(currentWord)} (您写: ${escapeHtml(inputAnswer)})</span>`; dictationState.wrongCount++;
-            if(!dictationState.isReviewMode) { let lang = (dictationState.type === 'chinese' || (dictationState.type === 'custom' && /[\u4e00-\u9fa5]/.test(currentWord))) ? 'chinese' : 'english'; if(lang) addWrongWord(currentWord, lang); }
+        } else {
+            resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${escapeHtml(currentWord)} (您写: ${escapeHtml(inputAnswer)})</span>`;
+            dictationState.wrongCount++;
+            if(!dictationState.isReviewMode) {
+                let lang = (dictationState.type === 'chinese' || (dictationState.type === 'custom' && /[\u4e00-\u9fa5]/.test(currentWord))) ? 'chinese' : 'english';
+                if(lang) addWrongWord(currentWord, lang);
+            }
         }
-        const today = new Date().toLocaleDateString(); let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
+        const today = new Date().toLocaleDateString();
+        let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
         if(!records[today]) records[today] = {correct:0, wrong:0};
         isCorrect ? records[today].correct++ : records[today].wrong++;
         localStorage.setItem('dictationRecords', JSON.stringify(records));
@@ -617,36 +649,175 @@
         document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
         document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
         if(appSettings.dictationMode === "auto" && dictationState.active) {
-            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) { finishDictation(); dictationState.isSubmitting = false; return; }
-            dictationState.currentIndex++; refreshDictationUI(); setTimeout(() => { playCurrentWord(); dictationState.isSubmitting = false; }, 250);
-        } else { dictationState.isSubmitting = false; }
+            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                finishDictation();
+                dictationState.isSubmitting = false;
+                return;
+            }
+            dictationState.currentIndex++;
+            refreshDictationUI();
+            setTimeout(() => { playCurrentWord(); dictationState.isSubmitting = false; }, 250);
+        } else {
+            dictationState.isSubmitting = false;
+        }
     }
+
     function refreshDictationUI() {
         document.getElementById("curIdx").innerText = dictationState.currentIndex+1;
         document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex;
         document.getElementById("dictResultArea").innerHTML = "";
         document.getElementById("hintArea").style.display = "none";
-        clearGrid();
-        renderTianGrid(dictationState.wordList[dictationState.currentIndex]);
+        clearInput();
+        renderInputArea();
     }
-    function nextWordManual() { if(!dictationState.active) return; if(dictationState.listeningOnly && !dictationState.autoContinuousPlay) { if(dictationState.currentIndex+1>=dictationState.wordList.length) finishDictation(); else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); } return; } if(!dictationState.listeningOnly && appSettings.dictationMode === "manual") { forceSubmitAnswer(); setTimeout(() => { if(dictationState.currentIndex+1>=dictationState.wordList.length) finishDictation(); else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); } }, 200); } }
-    function skipWord() { if(!dictationState.active || dictationState.listeningOnly) return; cancelDictTimers(); if(dictationState.currentIndex+1>=dictationState.wordList.length) finishDictation(); else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); } }
-    function finishDictation() { if(dictationState.active) { cancelDictTimers(); cancelSpeech(); alert(`🎉 完成听写！\n正确：${dictationState.correctCount}\n错误：${dictationState.wrongCount}`); exitDictation(); } }
-    function exitDictation() { cancelDictTimers(); cancelSpeech(); dictationState.active = false; showPage("pageHome"); }
-    function showPage(pageId) { if(dictationState.active && pageId !== "pageDictation") { if(confirm("听写尚未结束，离开将会丢失当前进度，是否离开？")) exitDictation(); else return; } document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(pageId).classList.add('active'); if(pageId === 'pageHome') refreshHomeStats(); if(pageId === 'pageCustomManager') renderCustomList(); }
-    function refreshHomeStats() { const today = new Date().toLocaleDateString(); const records = JSON.parse(localStorage.getItem('dictationRecords') || '{}'); const td = records[today] || {correct:0, wrong:0}; document.getElementById('todayCorrect').innerText = td.correct; document.getElementById('todayWrong').innerText = td.wrong; const total = td.correct+td.wrong; const rate = total ? Math.round((td.correct/total)*100) : 0; document.getElementById('todayRate').innerText = rate+"%"; document.getElementById('welcomeUser').innerHTML = `👋 ${escapeHtml(localStorage.getItem('studentName')||'同学')}，田字格练字`; }
-    function showWrongWords(lang) { currentWrongLang = lang; document.getElementById("wrongTitle").innerText = lang === 'chinese' ? '语文错词本' : '英语错词本'; const words = wrongWords[lang]; const container = document.getElementById("wrongWordsList"); if(!words.length) container.innerHTML = '<div style="padding:20px;text-align:center">暂无错词，继续加油！</div>'; else container.innerHTML = words.map(w => `<div class="word-badge wrong">${escapeHtml(w)}</div>`).join(''); showPage('pageWrongWords'); }
-    function reviewWrongWords(lang) { const words = [...wrongWords[lang]]; if(!words.length) { alert(`🎉 太棒了！${lang === 'chinese' ? '语文' : '英语'}错词本已清空`); return; } let detailsMap = new Map(); words.forEach(w => detailsMap.set(w, `复习词：${w}`)); startDictationWithWords(words, `📖 ${lang === 'chinese' ? '语文' : '英语'}错词复习`, lang === 'chinese' ? 'review_chinese' : 'review_english', detailsMap, true, lang); }
-    function clearWrongWordsHandler() { if(confirm(`确定清空${currentWrongLang === 'chinese' ? '语文' : '英语'}错词本吗？`)) { clearWrongWords(currentWrongLang); showWrongWords(currentWrongLang); } }
-    function renderCustomList() { const container = document.getElementById("customSetList"); if(!container) return; container.innerHTML = ""; customSets.forEach(set => { const div = document.createElement("div"); div.className = "flex-row"; div.style.justifyContent = "space-between"; div.style.background = "#f1f5f9"; div.style.padding = "12px 16px"; div.style.borderRadius = "60px"; div.style.marginBottom = "10px"; div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:6px 14px;">选用</button><button class="btn" data-del="${set.id}" style="padding:6px 14px;">删除</button></div>`; container.appendChild(div); }); if(!customSets.length) container.innerHTML = "<div style='padding:12px'>暂无词库，点击新建</div>"; }
+
+    function nextWordManual() {
+        if(!dictationState.active) return;
+        if(dictationState.listeningOnly) {
+            if(dictationState.currentIndex+1 >= dictationState.wordList.length) finishDictation();
+            else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); }
+            return;
+        }
+        if(!dictationState.listeningOnly && appSettings.dictationMode === "manual") {
+            forceSubmitAnswer();
+            setTimeout(() => {
+                if(dictationState.currentIndex+1 >= dictationState.wordList.length) finishDictation();
+                else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); }
+            }, 200);
+        }
+    }
+
+    function skipWord() {
+        if(!dictationState.active || dictationState.listeningOnly) return;
+        cancelDictTimers();
+        if(dictationState.currentIndex+1 >= dictationState.wordList.length) finishDictation();
+        else { dictationState.currentIndex++; refreshDictationUI(); playCurrentWord(); }
+    }
+
+    function finishDictation() {
+        if(dictationState.active) {
+            cancelDictTimers(); cancelSpeech();
+            alert(`🎉 完成听写！\n正确：${dictationState.correctCount}\n错误：${dictationState.wrongCount}`);
+            exitDictation();
+        }
+    }
+
+    function exitDictation() {
+        cancelDictTimers(); cancelSpeech();
+        dictationState.active = false;
+        showPage("pageHome");
+    }
+
+    function showPage(pageId) {
+        if(dictationState.active && pageId !== "pageDictation") {
+            if(confirm("听写尚未结束，离开将会丢失当前进度，是否离开？")) exitDictation();
+            else return;
+        }
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        if(pageId === 'pageHome') refreshHomeStats();
+        if(pageId === 'pageCustomManager') renderCustomList();
+    }
+
+    function refreshHomeStats() {
+        const today = new Date().toLocaleDateString();
+        const records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
+        const td = records[today] || {correct:0, wrong:0};
+        document.getElementById('todayCorrect').innerText = td.correct;
+        document.getElementById('todayWrong').innerText = td.wrong;
+        const total = td.correct+td.wrong;
+        const rate = total ? Math.round((td.correct/total)*100) : 0;
+        document.getElementById('todayRate').innerText = rate+"%";
+        document.getElementById('welcomeUser').innerHTML = `👋 ${escapeHtml(localStorage.getItem('studentName')||'同学')}，田字格练字`;
+    }
+
+    function showWrongWords(lang) {
+        currentWrongLang = lang;
+        document.getElementById("wrongTitle").innerText = lang === 'chinese' ? '语文错词本' : '英语错词本';
+        const words = wrongWords[lang];
+        const container = document.getElementById("wrongWordsList");
+        if(!words.length) container.innerHTML = '<div style="padding:20px;text-align:center">暂无错词，继续加油！</div>';
+        else container.innerHTML = words.map(w => `<div class="word-badge wrong">${escapeHtml(w)}</div>`).join('');
+        showPage('pageWrongWords');
+    }
+
+    function reviewWrongWords(lang) {
+        const words = [...wrongWords[lang]];
+        if(!words.length) { alert(`🎉 太棒了！${lang === 'chinese' ? '语文' : '英语'}错词本已清空`); return; }
+        let detailsMap = new Map();
+        words.forEach(w => detailsMap.set(w, `复习词：${w}`));
+        startDictationWithWords(words, `📖 ${lang === 'chinese' ? '语文' : '英语'}错词复习`, lang === 'chinese' ? 'review_chinese' : 'review_english', detailsMap, true, lang);
+    }
+
+    function clearWrongWordsHandler() {
+        if(confirm(`确定清空${currentWrongLang === 'chinese' ? '语文' : '英语'}错词本吗？`)) {
+            clearWrongWords(currentWrongLang);
+            showWrongWords(currentWrongLang);
+        }
+    }
+
+    // 自定义词库相关函数
+    function renderCustomList() {
+        const container = document.getElementById("customSetList");
+        if(!container) return;
+        container.innerHTML = "";
+        customSets.forEach(set => {
+            const div = document.createElement("div");
+            div.className = "flex-row";
+            div.style.justifyContent = "space-between";
+            div.style.background = "#f1f5f9";
+            div.style.padding = "12px 16px";
+            div.style.borderRadius = "60px";
+            div.style.marginBottom = "10px";
+            div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:6px 14px;">选用</button><button class="btn" data-del="${set.id}" style="padding:6px 14px;">删除</button></div>`;
+            container.appendChild(div);
+        });
+        if(!customSets.length) container.innerHTML = "<div style='padding:12px'>暂无词库，点击新建</div>";
+    }
+
     function selectCustomSet(id) { currentCustomSetId = id; alert(`已选用：${customSets.find(s=>s.id===id)?.name}`); }
     function deleteCustomSet(id) { if(confirm("永久删除词库？")){ customSets = customSets.filter(s=>s.id!==id); if(currentCustomSetId===id) currentCustomSetId=customSets[0]?.id||null; saveCustomSets(); renderCustomList(); } }
     function createNewCustomSet() { let name = prompt("新词库名称", "我的生词本"); if(!name) return; let newId = "c_"+Date.now(); customSets.push({ id:newId, name:name, words:[], langType:"chinese" }); currentCustomSetId = newId; saveCustomSets(); renderCustomList(); alert("新建成功，可粘贴生成词语"); }
     function generateFromPaste() { let raw = document.getElementById("pasteTextArea").value; if(!raw.trim()) { alert("请粘贴内容"); return; } let words = raw.split(/[\n,，、\s]+/).filter(w => w.trim().length>0); words = [...new Map(words.map(w=>[w.trim(), w.trim()])).values()]; if(!words.length) { alert("未识别有效词语"); return; } let newName = prompt("词库名称", `听写作业-${new Date().toLocaleTimeString()}`); if(!newName) return; let newId = "gen_"+Date.now(); customSets.push({ id:newId, name:newName, words:words, langType:"auto" }); currentCustomSetId = newId; saveCustomSets(); renderCustomList(); alert(`生成成功！共${words.length}个词语`); document.getElementById("pasteTextArea").value = ""; }
     function appendToCurrentCustom() { let raw = document.getElementById("pasteTextArea").value; if(!raw.trim()) { alert("粘贴内容为空"); return; } if(!currentCustomSetId) { alert("请先选择一个词库"); return; } let target = customSets.find(s=>s.id===currentCustomSetId); if(!target) return; let newWords = raw.split(/[\n,，、\s]+/).filter(w => w.trim() && !target.words.includes(w.trim())).map(w=>w.trim()); if(!newWords.length) { alert("无新词可添加"); return; } target.words.push(...newWords); saveCustomSets(); renderCustomList(); alert(`已追加${newWords.length}个词到「${target.name}」`); document.getElementById("pasteTextArea").value = ""; }
     function startSelectedCustom() { const set = customSets.find(s => s.id === currentCustomSetId); if(!set || !set.words.length) { alert("当前自定义词库为空，请先通过「粘贴生成」或新建词库添加词语"); return; } const words = [...set.words]; const detailsMap = new Map(); words.forEach(w => detailsMap.set(w, /[\u4e00-\u9fa5]/.test(w) ? `词语：${w}` : `英文单词：${w}`)); startDictationWithWords(words, `✨ ${set.name}`, "custom", detailsMap, false, null); }
-    function saveSettings() { appSettings.playCount = parseInt(document.getElementById("settingPlayCount").value); appSettings.intervalSec = parseFloat(document.getElementById("settingIntervalSec").value); appSettings.rate = parseFloat(document.getElementById("settingRate").value); document.getElementById("rateValue").innerText = appSettings.rate.toFixed(2); appSettings.voiceGender = document.getElementById("settingVoiceGender").value; appSettings.dictationMode = document.getElementById("dictationMode").value; appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value); appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked; saveSettingsToLocal(); alert("设置已保存"); }
-    function loadStorage() { const storedSets = localStorage.getItem("customWordSets"); if(storedSets) customSets = JSON.parse(storedSets); else { customSets = [{ id: "set1", name: "基础生词", words: ["快乐","学习","成长","祖国","勤奋"], langType: "chinese" },{ id: "set2", name: "英语入门", words: ["apple","teacher","good","family","school"], langType: "english" }]; currentCustomSetId = "set1"; } if(!currentCustomSetId && customSets.length) currentCustomSetId = customSets[0].id; const storedSettings = localStorage.getItem("dictationSettings"); if(storedSettings) Object.assign(appSettings, JSON.parse(storedSettings)); const storedWrong = localStorage.getItem("wrongWords"); if(storedWrong) wrongWords = JSON.parse(storedWrong); else wrongWords = { chinese: [], english: [] }; document.getElementById("settingPlayCount").value = appSettings.playCount; document.getElementById("settingIntervalSec").value = appSettings.intervalSec; document.getElementById("settingRate").value = appSettings.rate; document.getElementById("rateValue").innerText = appSettings.rate.toFixed(2); document.getElementById("settingVoiceGender").value = appSettings.voiceGender; document.getElementById("dictationMode").value = appSettings.dictationMode; document.getElementById("autoWaitSec").value = appSettings.autoWaitSec; document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly; }
+
+    function saveSettings() {
+        appSettings.playCount = parseInt(document.getElementById("settingPlayCount").value);
+        appSettings.intervalSec = parseFloat(document.getElementById("settingIntervalSec").value);
+        appSettings.rate = parseFloat(document.getElementById("settingRate").value);
+        document.getElementById("rateValue").innerText = appSettings.rate.toFixed(2);
+        appSettings.voiceGender = document.getElementById("settingVoiceGender").value;
+        appSettings.dictationMode = document.getElementById("dictationMode").value;
+        appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value);
+        appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked;
+        saveSettingsToLocal();
+        alert("设置已保存");
+    }
+
+    function loadStorage() {
+        const storedSets = localStorage.getItem("customWordSets");
+        if(storedSets) customSets = JSON.parse(storedSets);
+        else {
+            customSets = [{ id: "set1", name: "基础生词", words: ["快乐","学习","成长","祖国","勤奋"], langType: "chinese" },{ id: "set2", name: "英语入门", words: ["apple","teacher","good","family","school"], langType: "english" }];
+            currentCustomSetId = "set1";
+        }
+        if(!currentCustomSetId && customSets.length) currentCustomSetId = customSets[0].id;
+        const storedSettings = localStorage.getItem("dictationSettings");
+        if(storedSettings) Object.assign(appSettings, JSON.parse(storedSettings));
+        const storedWrong = localStorage.getItem("wrongWords");
+        if(storedWrong) wrongWords = JSON.parse(storedWrong);
+        else wrongWords = { chinese: [], english: [] };
+        document.getElementById("settingPlayCount").value = appSettings.playCount;
+        document.getElementById("settingIntervalSec").value = appSettings.intervalSec;
+        document.getElementById("settingRate").value = appSettings.rate;
+        document.getElementById("rateValue").innerText = appSettings.rate.toFixed(2);
+        document.getElementById("settingVoiceGender").value = appSettings.voiceGender;
+        document.getElementById("dictationMode").value = appSettings.dictationMode;
+        document.getElementById("autoWaitSec").value = appSettings.autoWaitSec;
+        document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly;
+    }
+
     function bindEvents() {
         document.querySelectorAll('[data-dictate]').forEach(btn => btn.addEventListener('click', e => { const type = btn.dataset.dictate; if(type === 'chinese') startDictationWithWords(chineseFull.map(i=>i.word), "📖 语文听写", "chinese", new Map(chineseFull.map(i=>[i.word,`拼音：${i.pinyin}，释义：${i.meaning}`])), false, null); else if(type === 'english') startDictationWithWords(englishFull.map(i=>i.word), "🇬🇧 英语听写", "english", new Map(englishFull.map(i=>[i.word,`音标：${i.phonetic}，释义：${i.meaning}`])), false, null); else startSelectedCustom(); }));
         document.querySelectorAll('[data-wrong]').forEach(btn => btn.addEventListener('click', e => showWrongWords(btn.dataset.wrong)));
@@ -659,7 +830,7 @@
         document.getElementById("submitBtn")?.addEventListener('click', () => { if(dictationState.active && !dictationState.listeningOnly && !dictationState.isSubmitting) forceSubmitAnswer(); });
         document.getElementById("nextBtn")?.addEventListener('click', () => nextWordManual());
         document.getElementById("skipBtn")?.addEventListener('click', () => skipWord());
-        document.getElementById("clearGridBtn")?.addEventListener('click', () => clearGrid());
+        document.getElementById("clearInputBtn")?.addEventListener('click', () => clearInput());
         document.getElementById("reviewFromWrongBtn")?.addEventListener('click', () => reviewWrongWords(currentWrongLang));
         document.getElementById("clearWrongBtn")?.addEventListener('click', () => clearWrongWordsHandler());
         document.getElementById("saveSettingsBtn")?.addEventListener('click', () => saveSettings());
@@ -672,6 +843,7 @@
         document.getElementById("listeningOnlyMode")?.addEventListener('change', (e) => { if(dictationState.active) alert("请在下次听写生效"); });
         document.querySelectorAll('.nav-item').forEach(nav => { nav.addEventListener('click', () => { const target = nav.dataset.page; if(target === 'wrong') { if(currentWrongLang) showWrongWords(currentWrongLang); else showWrongWords('chinese'); } else if(target) showPage(target); }); });
     }
+
     if(!localStorage.getItem('studentName')) localStorage.setItem('studentName', prompt("欢迎使用听写助手，请输入你的名字", "小学霸") || "同学");
     loadStorage(); bindEvents(); refreshHomeStats();
 </script>
