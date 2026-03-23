@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>智慧听写助手 · 标准田字格手写板</title>
+    <title>智慧听写助手 · 大田字格手写板</title>
     <style>
         * {
             margin: 0;
@@ -34,25 +34,25 @@
         .header {
             background: linear-gradient(135deg, #1e4b6e, #2c6288);
             color: white;
-            padding: 24px 24px 20px;
-            border-radius: 0 0 32px 32px;
+            padding: 20px 20px 16px;
+            border-radius: 0 0 28px 28px;
             box-shadow: 0 6px 14px rgba(0,0,0,0.08);
         }
         .header h1 {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             font-weight: 600;
         }
         .back-btn {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            font-size: 1rem;
-            padding: 8px 16px;
+            font-size: 0.9rem;
+            padding: 6px 14px;
             border-radius: 40px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             cursor: pointer;
             backdrop-filter: blur(4px);
             font-weight: 500;
@@ -60,19 +60,19 @@
 
         .card {
             background: white;
-            border-radius: 28px;
-            padding: 24px;
-            margin: 20px;
+            border-radius: 24px;
+            padding: 18px 20px;
+            margin: 16px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.05);
             transition: 0.2s;
             border: 1px solid rgba(0,0,0,0.03);
         }
 
         .btn {
-            padding: 14px 24px;
+            padding: 10px 18px;
             border: none;
             border-radius: 60px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
             transition: 0.2s;
@@ -87,7 +87,7 @@
         .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         .flex-row {
             display: flex;
-            gap: 14px;
+            gap: 12px;
             flex-wrap: wrap;
             align-items: center;
             justify-content: center;
@@ -97,10 +97,10 @@
             display: flex;
             justify-content: space-around;
             text-align: center;
-            margin: 12px 0;
+            margin: 8px 0;
         }
         .stat-num {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             color: #2c6288;
         }
@@ -108,19 +108,19 @@
         .dictate-card {
             text-align: center;
             background: #fefefe;
-            border-radius: 48px;
-            padding: 20px;
+            border-radius: 40px;
+            padding: 16px;
             box-shadow: 0 12px 28px rgba(0,0,0,0.08);
         }
         .big-hint {
-            font-size: 72px;
+            font-size: 56px;
             font-weight: 800;
-            letter-spacing: 6px;
+            letter-spacing: 4px;
             color: #1a3b4e;
             background: #f1f7fc;
-            padding: 40px 16px;
-            border-radius: 56px;
-            margin: 20px 0;
+            padding: 28px 12px;
+            border-radius: 48px;
+            margin: 16px 0;
             word-break: break-word;
         }
         
@@ -135,21 +135,21 @@
         .tian-grid {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 24px;
             flex-wrap: wrap;
             align-items: center;
         }
-        /* 单个田字格：实线边框 + 内部虚线米字 (通过伪元素SVG实现) */
+        /* 单个田字格 - 加大一倍 */
         .tian-cell {
             position: relative;
-            width: 110px;
-            height: 110px;
+            width: 220px;
+            height: 220px;
             background: white;
-            border: 2px solid #b87c4f;   /* 实线边框 */
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            cursor: text;
+            border: 3px solid #b87c4f;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            cursor: crosshair;
         }
-        /* 虚线米字格 SVG 背景 (覆盖整个格子，点击穿透) */
+        /* 虚线米字格 SVG 背景 */
         .tian-cell::before {
             content: '';
             position: absolute;
@@ -159,70 +159,52 @@
             height: 100%;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cline x1='50' y1='0' x2='50' y2='100' stroke='%23c0a080' stroke-width='1.2' stroke-dasharray='5 5'/%3E%3Cline x1='0' y1='50' x2='100' y2='50' stroke='%23c0a080' stroke-width='1.2' stroke-dasharray='5 5'/%3E%3Cline x1='0' y1='0' x2='100' y2='100' stroke='%23c0a080' stroke-width='1' stroke-dasharray='4 6'/%3E%3Cline x1='0' y1='100' x2='100' y2='0' stroke='%23c0a080' stroke-width='1' stroke-dasharray='4 6'/%3E%3C/svg%3E");
             background-size: 100% 100%;
-            pointer-events: none;   /* 让点击穿透到 input */
+            pointer-events: none;
             z-index: 1;
         }
-        /* 手写输入框置于上方，可点击输入 */
-        .handwrite-input {
+        /* Canvas 手写板 */
+        .handwrite-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: transparent;
-            border: none;
-            text-align: center;
-            font-size: 56px;
-            font-weight: 500;
-            font-family: 'KaiTi', '华文楷书', '楷体', 'PingFang SC', cursive;
-            color: #2d3e50;
-            caret-color: #2c6288;
-            outline: none;
-            padding: 0;
-            margin: 0;
-            line-height: 110px;
-            letter-spacing: 2px;
-            inputmode: text;
-            -webkit-user-select: text;
-            user-select: text;
-            pointer-events: auto;
+            cursor: crosshair;
             z-index: 2;
-        }
-        .handwrite-input:focus {
-            background: rgba(200, 220, 240, 0.2);
-            outline: none;
+            touch-action: none;
         }
         .handwrite-tip {
-            font-size: 13px;
+            font-size: 12px;
             color: #b87333;
             background: #fef2e0;
             display: inline-block;
-            padding: 6px 16px;
+            padding: 4px 14px;
             border-radius: 60px;
-            margin-top: 12px;
+            margin-top: 10px;
         }
         /* 普通输入框（英语模式） */
         .normal-input {
-            width: 90%;
-            font-size: 32px;
-            padding: 20px 24px;
+            width: 85%;
+            font-size: 28px;
+            padding: 16px 20px;
             text-align: center;
-            border-radius: 80px;
+            border-radius: 60px;
             border: 2px solid #cbdbe6;
             background: white;
             font-weight: 500;
             margin: 20px auto;
         }
-        .result-badge { font-size: 1.4rem; margin: 16px 0; font-weight: bold; }
+        .result-badge { font-size: 1.2rem; margin: 12px 0; font-weight: bold; }
         .correct { color: #15803d; }
         .wrong { color: #b91c1c; }
         .hint-message {
             background: #fef9e3;
             border-left: 4px solid #e6b12e;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 16px;
-            font-size: 0.95rem;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 14px;
+            font-size: 0.85rem;
             color: #7c5c0c;
             text-align: left;
         }
@@ -238,16 +220,16 @@
             backdrop-filter: blur(12px);
             display: flex;
             justify-content: space-around;
-            padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+            padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
             border-top: 1px solid #e9edf2;
             z-index: 30;
         }
         .nav-item {
             flex: 1;
             text-align: center;
-            padding: 10px 0;
-            border-radius: 60px;
-            font-size: 15px;
+            padding: 8px 0;
+            border-radius: 40px;
+            font-size: 14px;
             font-weight: 500;
             color: #5b6e8c;
             cursor: pointer;
@@ -266,30 +248,32 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 22px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
+            font-size: 0.9rem;
         }
         select, input[type="number"], input[type="range"] {
-            padding: 12px 18px;
-            border-radius: 60px;
+            padding: 8px 14px;
+            border-radius: 40px;
             border: 1px solid #cbd5e1;
             background: white;
-            font-size: 1rem;
-            min-width: 110px;
+            font-size: 0.9rem;
+            min-width: 100px;
         }
         .range-value {
             background: #eef2ff;
-            padding: 6px 12px;
+            padding: 4px 10px;
             border-radius: 40px;
             font-weight: 500;
+            font-size: 0.85rem;
         }
         textarea {
             width: 100%;
-            border-radius: 28px;
+            border-radius: 24px;
             border: 1px solid #cbd5e1;
-            padding: 16px;
-            font-size: 1rem;
+            padding: 12px;
+            font-size: 0.9rem;
             font-family: inherit;
             background: #fefefe;
         }
@@ -297,27 +281,31 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 12px;
+            margin-top: 10px;
             max-height: 200px;
             overflow-y: auto;
         }
         .word-badge {
             background: #eef2ff;
-            padding: 6px 14px;
+            padding: 4px 12px;
             border-radius: 40px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .word-badge.wrong { background: #fee2e2; color: #b91c1c; }
+        
+        /* 移动端适配：格子适当缩小，但仍比原来大一倍（原移动端80->160） */
         @media (max-width: 550px) {
-            .tian-cell { width: 80px; height: 80px; }
-            .handwrite-input { font-size: 42px; line-height: 80px; }
-            .normal-input { font-size: 24px; padding: 16px; }
+            .tian-cell { width: 160px; height: 160px; }
+            .big-hint { font-size: 48px; padding: 20px 8px; }
+            .btn { padding: 8px 16px; font-size: 0.85rem; }
+            .normal-input { font-size: 24px; padding: 12px 16px; }
+            .header h1 { font-size: 1.4rem; }
         }
         @media (min-width: 768px) {
             .app-container { border-radius: 32px; margin: 20px auto; min-height: auto; }
-            .big-hint { font-size: 88px; }
-            .tian-cell { width: 130px; height: 130px; }
-            .handwrite-input { font-size: 68px; line-height: 130px; }
+            .big-hint { font-size: 72px; }
+            .tian-cell { width: 260px; height: 260px; }
+            .handwrite-canvas { /* 自动适应尺寸 */ }
         }
     </style>
 </head>
@@ -327,10 +315,10 @@
     <div id="pageHome" class="page active">
         <div class="header">
             <h1>✍️ 智慧听写助手</h1>
-            <p style="opacity:0.9; margin-top: 8px; font-size: 1rem;" id="welcomeUser"></p>
+            <p style="opacity:0.9; margin-top: 6px; font-size: 0.9rem;" id="welcomeUser"></p>
         </div>
         <div class="card"><h3>🎯 快速听写</h3>
-            <div class="flex-row" style="margin-top: 16px;">
+            <div class="flex-row" style="margin-top: 12px;">
                 <button class="btn btn-primary" data-dictate="chinese">📝 语文预置</button>
                 <button class="btn btn-success" data-dictate="english">🇬🇧 英语预置</button>
                 <button class="btn btn-outline" data-dictate="custom">✨ 我的词库</button>
@@ -353,43 +341,43 @@
         </div>
         <div class="card"><h3>⚙️ 个性化设置</h3>
             <button class="btn btn-outline" data-page="pageSettings">🔧 语音/次数/模式</button>
-            <button class="btn btn-outline" style="margin-top: 12px;" data-page="pageCustomManager">📚 自定义词库 + 一键生成</button>
+            <button class="btn btn-outline" style="margin-top: 10px;" data-page="pageCustomManager">📚 自定义词库 + 一键生成</button>
         </div>
     </div>
 
-    <!-- 听写页面 (动态输入区) -->
+    <!-- 听写页面 -->
     <div id="pageDictation" class="page">
-        <div class="header" style="padding: 18px 24px;">
+        <div class="header" style="padding: 14px 20px;">
             <button class="back-btn" data-exit-dictation>← 返回</button>
             <h1 id="dictTitle">语文听写</h1>
         </div>
-        <div style="padding: 12px 16px;">
+        <div style="padding: 10px 12px;">
             <div class="card dictate-card">
-                <div style="font-size: 1.1rem; color:#475569;">第 <span id="curIdx">1</span> / <span id="totalWords">0</span> 个</div>
+                <div style="font-size: 1rem; color:#475569;">第 <span id="curIdx">1</span> / <span id="totalWords">0</span> 个</div>
                 <div class="big-hint" id="wordDisplayHint">🎧 听写进行中</div>
-                <div class="flex-row" style="justify-content: center; gap: 16px;">
+                <div class="flex-row" style="justify-content: center; gap: 12px;">
                     <button class="btn btn-primary" id="playVoiceBtn">🔊 播放语音</button>
                     <button class="btn btn-outline" id="modeActionBtn">⚡ 开始/重播</button>
                     <button class="btn btn-info" id="hintBtn">❓ 疑难提示</button>
                 </div>
                 
-                <!-- 动态输入区域：根据模式切换田字格或普通输入框 -->
+                <!-- 动态输入区域 -->
                 <div id="dynamicInputArea"></div>
 
-                <div class="flex-row" style="justify-content: center; gap: 16px; margin-top: 8px;">
+                <div class="flex-row" style="justify-content: center; gap: 12px; margin-top: 8px;">
                     <button class="btn btn-success" id="submitBtn">✓ 提交答案</button>
                     <button class="btn btn-primary" id="nextBtn" style="display: none;">⏩ 下一词</button>
                     <button class="btn btn-outline" id="skipBtn" style="display: none;">⏭️ 跳过</button>
-                    <button class="btn btn-outline" id="clearInputBtn">🧽 清空输入</button>
+                    <button class="btn btn-outline" id="clearInputBtn">🧽 清空笔迹</button>
                 </div>
                 <div id="dictResultArea" class="result-badge"></div>
                 <div id="hintArea" class="hint-message" style="display: none;"></div>
-                <div class="stats-grid" style="margin-top: 20px;">
+                <div class="stats-grid" style="margin-top: 12px;">
                     <div>✅ 正确: <strong id="sessionCorrect">0</strong></div>
                     <div>❌ 错误: <strong id="sessionWrong">0</strong></div>
                     <div>📌 剩余: <strong id="sessionRemain">0</strong></div>
                 </div>
-                <div id="autoStatusTip" style="font-size: 14px; background: #f0f6fe; padding: 10px; border-radius: 60px; margin-top: 12px;"></div>
+                <div id="autoStatusTip" style="font-size: 12px; background: #f0f6fe; padding: 8px; border-radius: 40px; margin-top: 10px;"></div>
             </div>
         </div>
     </div>
@@ -398,7 +386,7 @@
     <div id="pageWrongWords" class="page">
         <div class="header"><button class="back-btn" data-page="pageHome">← 返回</button><h1 id="wrongTitle">错词本</h1></div>
         <div class="card"><div id="wrongWordsList" class="word-list"></div>
-            <div class="flex-row" style="margin-top: 20px;">
+            <div class="flex-row" style="margin-top: 16px;">
                 <button class="btn btn-primary" id="reviewFromWrongBtn">🔁 复习这些错词</button>
                 <button class="btn btn-outline" id="clearWrongBtn">🗑️ 清空错词本</button>
             </div>
@@ -414,6 +402,7 @@
             <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select></div>
             <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (提交后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
+            <div class="setting-item"><span>🎨 手写模式</span><label><input type="checkbox" id="handwritingMode"> 开启后直接在田字格手写（无自动识别）</label></div>
             <div class="setting-item"><span>🎧 纯听模式 (隐藏输入)</span><label><input type="checkbox" id="listeningOnlyMode"> 开启后只听不写</label></div>
             <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动提交等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
             <button class="btn btn-primary" style="width:100%" id="saveSettingsBtn">💾 保存设置</button>
@@ -424,15 +413,15 @@
     <div id="pageCustomManager" class="page">
         <div class="header"><button class="back-btn" data-page="pageHome">← 返回</button><h1>📚 我的词库</h1></div>
         <div class="card"><h3>✨ 粘贴内容 一键生成听写作业</h3>
-            <textarea id="pasteTextArea" rows="4" placeholder="支持中英文混合，用空格、逗号或换行分隔&#10;例如：苹果 banana 快乐  school"></textarea>
-            <div class="flex-row" style="margin: 14px 0;">
+            <textarea id="pasteTextArea" rows="3" placeholder="支持中英文混合，用空格、逗号或换行分隔&#10;例如：苹果 banana 快乐  school"></textarea>
+            <div class="flex-row" style="margin: 10px 0;">
                 <button class="btn btn-primary" id="generateFromPasteBtn">⚡ 生成新词库并听写</button>
                 <button class="btn btn-outline" id="appendToCurrentBtn">📥 追加到当前词库</button>
             </div>
-            <hr style="margin: 16px 0;">
+            <hr style="margin: 12px 0;">
             <div class="flex-row" style="justify-content: space-between;"><h3>📖 我的词库列表</h3><button class="btn btn-outline" id="newCustomSetBtn">➕ 新建词库</button></div>
-            <div id="customSetList" style="margin-top: 16px;"></div>
-            <div style="margin-top: 20px;"><button class="btn btn-success" id="startSelectedCustomBtn">🎧 使用当前词库听写</button></div>
+            <div id="customSetList" style="margin-top: 12px;"></div>
+            <div style="margin-top: 16px;"><button class="btn btn-success" id="startSelectedCustomBtn">🎧 使用当前词库听写</button></div>
         </div>
     </div>
 </div>
@@ -443,8 +432,8 @@
     const englishFull = [{word:"apple",phonetic:"/ˈæpl/",meaning:"苹果"},{word:"banana",phonetic:"/bəˈnɑːnə/",meaning:"香蕉"},{word:"cat",phonetic:"/kæt/",meaning:"猫"},{word:"dog",phonetic:"/dɔːɡ/",meaning:"狗"},{word:"sun",phonetic:"/sʌn/",meaning:"太阳"},{word:"moon",phonetic:"/muːn/",meaning:"月亮"},{word:"happy",phonetic:"/ˈhæpi/",meaning:"快乐"},{word:"big",phonetic:"/bɪɡ/",meaning:"大"},{word:"small",phonetic:"/smɔːl/",meaning:"小"},{word:"red",phonetic:"/red/",meaning:"红色"},{word:"blue",phonetic:"/bluː/",meaning:"蓝色"},{word:"teacher",phonetic:"/ˈtiːtʃər/",meaning:"老师"},{word:"school",phonetic:"/skuːl/",meaning:"学校"},{word:"book",phonetic:"/bʊk/",meaning:"书"},{word:"friend",phonetic:"/frend/",meaning:"朋友"}];
     let customSets = [], currentCustomSetId = null;
     let wrongWords = { chinese: [], english: [] };
-    let dictationState = { active: false, wordList: [], wordDetailsMap: new Map(), currentIndex: 0, correctCount: 0, wrongCount: 0, type: "custom", waitingForInput: false, inputTimer: null, listeningOnly: false, isReviewMode: false, reviewLang: null, isSubmitting: false, useTianZiGe: true };
-    let appSettings = { playCount: 3, intervalSec: 3, rate: 1.0, voiceGender: "female", dictationMode: "auto", autoWaitSec: 2, listeningOnly: false };
+    let dictationState = { active: false, wordList: [], wordDetailsMap: new Map(), currentIndex: 0, correctCount: 0, wrongCount: 0, type: "custom", waitingForInput: false, inputTimer: null, listeningOnly: false, isReviewMode: false, reviewLang: null, isSubmitting: false, useTianZiGe: true, handwritingMode: false };
+    let appSettings = { playCount: 3, intervalSec: 3, rate: 1.0, voiceGender: "female", dictationMode: "auto", autoWaitSec: 2, listeningOnly: false, handwritingMode: false };
     let currentWrongLang = "chinese";
 
     // 辅助函数
@@ -487,7 +476,83 @@
     }
     function cancelSpeech() { speechCancelFlag = true; speechSynthesis.cancel(); }
 
-    // 动态输入区域渲染 (田字格或普通框)
+    // ---------- Canvas 手写板绘图功能 ----------
+    let drawing = false;
+    let currentCanvas = null;
+    let currentCtx = null;
+
+    function initCanvasHandwriting(canvas, color = '#2c6288', lineWidth = 6) {
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        function getCanvasCoords(e, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            let x = (clientX - rect.left) * scaleX;
+            let y = (clientY - rect.top) * scaleY;
+            x = Math.min(Math.max(0, x), canvas.width);
+            y = Math.min(Math.max(0, y), canvas.height);
+            return { x, y };
+        }
+
+        function startDraw(e) {
+            e.preventDefault();
+            drawing = true;
+            currentCanvas = canvas;
+            currentCtx = ctx;
+            const { x, y } = getCanvasCoords(e, canvas);
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        }
+
+        function draw(e) {
+            if (!drawing || currentCanvas !== canvas) return;
+            e.preventDefault();
+            const { x, y } = getCanvasCoords(e, canvas);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function endDraw() {
+            drawing = false;
+            currentCanvas = null;
+            currentCtx = null;
+        }
+
+        canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', endDraw);
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDraw);
+    }
+
+    function clearCanvas(canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function clearAllCanvases() {
+        document.querySelectorAll('.handwrite-canvas').forEach(canvas => clearCanvas(canvas));
+    }
+
+    // ---------- 动态输入区域渲染 ----------
     function renderInputArea() {
         const container = document.getElementById("dynamicInputArea");
         if(!container) return;
@@ -496,7 +561,6 @@
             return;
         }
         if(dictationState.useTianZiGe) {
-            // 田字格模式
             const currentWord = dictationState.wordList[dictationState.currentIndex];
             let chars = Array.from(currentWord);
             let gridCount = chars.length;
@@ -504,16 +568,32 @@
             if(gridCount < 1) gridCount = 1;
             let html = `<div class="tian-grid-container"><div class="tian-grid" id="tianGridWrapper">`;
             for(let i=0; i<gridCount; i++) {
-                html += `<div class="tian-cell"><input type="text" class="handwrite-input" maxlength="1" placeholder=" " autocomplete="off" inputmode="text"></div>`;
+                html += `<div class="tian-cell" data-grid-index="${i}"><canvas class="handwrite-canvas" width="100%" height="100%" style="width:100%;height:100%;"></canvas></div>`;
             }
-            html += `</div><div class="handwrite-tip">✍️ 点击格子，一笔一划书写 (实线边框 + 虚线米字格)</div>`;
-            if(currentWord.length > gridCount) html += `<div style="font-size:12px;color:#b45309;margin-top:8px;">⚠️ 词语较长，请在前${gridCount}格书写，答案需匹配全词</div>`;
+            html += `</div><div class="handwrite-tip">✍️ 直接在米字格内手写（手指/笔），系统不识别文字，请自评对错</div>`;
+            if(currentWord.length > gridCount) html += `<div style="font-size:11px;color:#b45309;margin-top:6px;">⚠️ 词语较长，请在前${gridCount}格书写，答案需匹配全词</div>`;
             html += `</div>`;
             container.innerHTML = html;
-            // 自动聚焦第一个格子
-            setTimeout(() => { const first = container.querySelector('.handwrite-input'); if(first) first.focus(); }, 50);
+            // 初始化每个 canvas
+            const canvases = container.querySelectorAll('.handwrite-canvas');
+            canvases.forEach(canvas => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                initCanvasHandwriting(canvas, '#2c6288', 6);
+            });
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                if(dictationState.active && dictationState.useTianZiGe && !dictationState.listeningOnly) {
+                    const canvases = document.querySelectorAll('.handwrite-canvas');
+                    canvases.forEach(canvas => {
+                        const rect = canvas.parentElement.getBoundingClientRect();
+                        canvas.width = rect.width;
+                        canvas.height = rect.height;
+                    });
+                }
+            });
         } else {
-            // 普通输入框模式
             container.innerHTML = `<input type="text" id="normalAnswerInput" class="normal-input" placeholder="✍️ 在这里输入答案" autocomplete="off" inputmode="text">`;
             setTimeout(() => { const inp = document.getElementById("normalAnswerInput"); if(inp) inp.focus(); }, 50);
         }
@@ -521,7 +601,9 @@
 
     function getAnswerFromInput() {
         if(dictationState.listeningOnly) return '';
-        if(dictationState.useTianZiGe) {
+        if(dictationState.useTianZiGe && appSettings.handwritingMode) {
+            return '';
+        } else if(dictationState.useTianZiGe && !appSettings.handwritingMode) {
             let answer = '';
             const inputs = document.querySelectorAll('#dynamicInputArea .handwrite-input');
             inputs.forEach(inp => answer += inp.value.trim());
@@ -533,7 +615,9 @@
     }
 
     function clearInput() {
-        if(dictationState.useTianZiGe) {
+        if(dictationState.useTianZiGe && appSettings.handwritingMode) {
+            clearAllCanvases();
+        } else if(dictationState.useTianZiGe && !appSettings.handwritingMode) {
             document.querySelectorAll('#dynamicInputArea .handwrite-input').forEach(inp => inp.value = '');
         } else {
             const inp = document.getElementById("normalAnswerInput");
@@ -541,7 +625,6 @@
         }
     }
 
-    // 判断词库是否应该使用田字格 (中文优先)
     function shouldUseTianZiGe(wordList, sourceType) {
         if(sourceType === 'english') return false;
         if(sourceType === 'chinese') return true;
@@ -551,7 +634,99 @@
         return false;
     }
 
-    // 听写启动
+    // 提交处理
+    async function forceSubmitAnswer() {
+        if(!dictationState.active || dictationState.listeningOnly || dictationState.isSubmitting) return;
+        dictationState.isSubmitting = true;
+        if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
+        
+        const currentWord = dictationState.wordList[dictationState.currentIndex];
+        
+        if(dictationState.useTianZiGe && appSettings.handwritingMode) {
+            const userChoice = confirm(`✍️ 您手写的词语是：“${currentWord}”\n\n请核对您的手写笔迹，是否正确？\n点击“确定”表示正确，点击“取消”表示错误。`);
+            if(userChoice) {
+                document.getElementById("dictResultArea").innerHTML = `<span class="correct">✅ 自评正确！很棒！</span>`;
+                dictationState.correctCount++;
+                if(dictationState.isReviewMode && dictationState.reviewLang) removeWrongWord(currentWord, dictationState.reviewLang);
+            } else {
+                document.getElementById("dictResultArea").innerHTML = `<span class="wrong">❌ 自评错误！正确答案: ${escapeHtml(currentWord)}</span>`;
+                dictationState.wrongCount++;
+                if(!dictationState.isReviewMode) {
+                    let lang = (dictationState.type === 'chinese' || (dictationState.type === 'custom' && /[\u4e00-\u9fa5]/.test(currentWord))) ? 'chinese' : 'english';
+                    if(lang) addWrongWord(currentWord, lang);
+                }
+            }
+            const today = new Date().toLocaleDateString();
+            let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
+            if(!records[today]) records[today] = {correct:0, wrong:0};
+            userChoice ? records[today].correct++ : records[today].wrong++;
+            localStorage.setItem('dictationRecords', JSON.stringify(records));
+            document.getElementById("sessionCorrect").innerText = dictationState.correctCount;
+            document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
+            document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
+            
+            if(appSettings.dictationMode === "auto" && dictationState.active) {
+                if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                    finishDictation();
+                    dictationState.isSubmitting = false;
+                    return;
+                }
+                dictationState.currentIndex++;
+                refreshDictationUI();
+                setTimeout(() => { playCurrentWord(); dictationState.isSubmitting = false; }, 250);
+            } else {
+                dictationState.isSubmitting = false;
+            }
+            return;
+        }
+        
+        // 普通模式（键盘输入）
+        const inputAnswer = getAnswerFromInput();
+        const isCorrect = inputAnswer.toLowerCase() === currentWord.toLowerCase();
+        const resultDiv = document.getElementById("dictResultArea");
+        if(isCorrect) {
+            resultDiv.innerHTML = `<span class="correct">✅ 正确！很棒！</span>`;
+            dictationState.correctCount++;
+            if(dictationState.isReviewMode && dictationState.reviewLang) removeWrongWord(currentWord, dictationState.reviewLang);
+        } else {
+            resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${escapeHtml(currentWord)} (您写: ${escapeHtml(inputAnswer)})</span>`;
+            dictationState.wrongCount++;
+            if(!dictationState.isReviewMode) {
+                let lang = (dictationState.type === 'chinese' || (dictationState.type === 'custom' && /[\u4e00-\u9fa5]/.test(currentWord))) ? 'chinese' : 'english';
+                if(lang) addWrongWord(currentWord, lang);
+            }
+        }
+        const today = new Date().toLocaleDateString();
+        let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
+        if(!records[today]) records[today] = {correct:0, wrong:0};
+        isCorrect ? records[today].correct++ : records[today].wrong++;
+        localStorage.setItem('dictationRecords', JSON.stringify(records));
+        document.getElementById("sessionCorrect").innerText = dictationState.correctCount;
+        document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
+        document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
+        if(appSettings.dictationMode === "auto" && dictationState.active) {
+            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
+                finishDictation();
+                dictationState.isSubmitting = false;
+                return;
+            }
+            dictationState.currentIndex++;
+            refreshDictationUI();
+            setTimeout(() => { playCurrentWord(); dictationState.isSubmitting = false; }, 250);
+        } else {
+            dictationState.isSubmitting = false;
+        }
+    }
+
+    function refreshDictationUI() {
+        document.getElementById("curIdx").innerText = dictationState.currentIndex+1;
+        document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex;
+        document.getElementById("dictResultArea").innerHTML = "";
+        document.getElementById("hintArea").style.display = "none";
+        clearInput();
+        renderInputArea();
+    }
+
     function startDictationWithWords(wordsArray, title, sourceType, detailsMap, isReview = false, reviewLang = null) {
         if(!wordsArray.length) { alert("词库为空，请先添加词语"); return false; }
         if(dictationState.active) exitDictation();
@@ -620,57 +795,6 @@
 
     function cancelDictTimers() { if(dictationState.inputTimer) clearTimeout(dictationState.inputTimer); dictationState.inputTimer = null; }
 
-    async function forceSubmitAnswer() {
-        if(!dictationState.active || dictationState.listeningOnly || dictationState.isSubmitting) return;
-        dictationState.isSubmitting = true;
-        if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
-        const currentWord = dictationState.wordList[dictationState.currentIndex];
-        const inputAnswer = getAnswerFromInput();
-        const isCorrect = inputAnswer.toLowerCase() === currentWord.toLowerCase();
-        const resultDiv = document.getElementById("dictResultArea");
-        if(isCorrect) {
-            resultDiv.innerHTML = `<span class="correct">✅ 正确！很棒！</span>`;
-            dictationState.correctCount++;
-            if(dictationState.isReviewMode && dictationState.reviewLang) removeWrongWord(currentWord, dictationState.reviewLang);
-        } else {
-            resultDiv.innerHTML = `<span class="wrong">❌ 错误！正确答案: ${escapeHtml(currentWord)} (您写: ${escapeHtml(inputAnswer)})</span>`;
-            dictationState.wrongCount++;
-            if(!dictationState.isReviewMode) {
-                let lang = (dictationState.type === 'chinese' || (dictationState.type === 'custom' && /[\u4e00-\u9fa5]/.test(currentWord))) ? 'chinese' : 'english';
-                if(lang) addWrongWord(currentWord, lang);
-            }
-        }
-        const today = new Date().toLocaleDateString();
-        let records = JSON.parse(localStorage.getItem('dictationRecords') || '{}');
-        if(!records[today]) records[today] = {correct:0, wrong:0};
-        isCorrect ? records[today].correct++ : records[today].wrong++;
-        localStorage.setItem('dictationRecords', JSON.stringify(records));
-        document.getElementById("sessionCorrect").innerText = dictationState.correctCount;
-        document.getElementById("sessionWrong").innerText = dictationState.wrongCount;
-        document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex - 1;
-        if(appSettings.dictationMode === "auto" && dictationState.active) {
-            if(dictationState.currentIndex + 1 >= dictationState.wordList.length) {
-                finishDictation();
-                dictationState.isSubmitting = false;
-                return;
-            }
-            dictationState.currentIndex++;
-            refreshDictationUI();
-            setTimeout(() => { playCurrentWord(); dictationState.isSubmitting = false; }, 250);
-        } else {
-            dictationState.isSubmitting = false;
-        }
-    }
-
-    function refreshDictationUI() {
-        document.getElementById("curIdx").innerText = dictationState.currentIndex+1;
-        document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex;
-        document.getElementById("dictResultArea").innerHTML = "";
-        document.getElementById("hintArea").style.display = "none";
-        clearInput();
-        renderInputArea();
-    }
-
     function nextWordManual() {
         if(!dictationState.active) return;
         if(dictationState.listeningOnly) {
@@ -728,9 +852,10 @@
         const total = td.correct+td.wrong;
         const rate = total ? Math.round((td.correct/total)*100) : 0;
         document.getElementById('todayRate').innerText = rate+"%";
-        document.getElementById('welcomeUser').innerHTML = `👋 ${escapeHtml(localStorage.getItem('studentName')||'同学')}，田字格练字`;
+        document.getElementById('welcomeUser').innerHTML = `👋 ${escapeHtml(localStorage.getItem('studentName')||'同学')}，大田字格手写练字`;
     }
 
+    // 错词本相关
     function showWrongWords(lang) {
         currentWrongLang = lang;
         document.getElementById("wrongTitle").innerText = lang === 'chinese' ? '语文错词本' : '英语错词本';
@@ -756,7 +881,7 @@
         }
     }
 
-    // 自定义词库相关函数
+    // 自定义词库管理
     function renderCustomList() {
         const container = document.getElementById("customSetList");
         if(!container) return;
@@ -766,10 +891,10 @@
             div.className = "flex-row";
             div.style.justifyContent = "space-between";
             div.style.background = "#f1f5f9";
-            div.style.padding = "12px 16px";
-            div.style.borderRadius = "60px";
-            div.style.marginBottom = "10px";
-            div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:6px 14px;">选用</button><button class="btn" data-del="${set.id}" style="padding:6px 14px;">删除</button></div>`;
+            div.style.padding = "10px 14px";
+            div.style.borderRadius = "50px";
+            div.style.marginBottom = "8px";
+            div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:4px 12px;">选用</button><button class="btn" data-del="${set.id}" style="padding:4px 12px;">删除</button></div>`;
             container.appendChild(div);
         });
         if(!customSets.length) container.innerHTML = "<div style='padding:12px'>暂无词库，点击新建</div>";
@@ -791,6 +916,7 @@
         appSettings.dictationMode = document.getElementById("dictationMode").value;
         appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value);
         appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked;
+        appSettings.handwritingMode = document.getElementById("handwritingMode").checked;
         saveSettingsToLocal();
         alert("设置已保存");
     }
@@ -816,6 +942,7 @@
         document.getElementById("dictationMode").value = appSettings.dictationMode;
         document.getElementById("autoWaitSec").value = appSettings.autoWaitSec;
         document.getElementById("listeningOnlyMode").checked = appSettings.listeningOnly;
+        document.getElementById("handwritingMode").checked = appSettings.handwritingMode;
     }
 
     function bindEvents() {
