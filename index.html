@@ -544,9 +544,11 @@
     async function loadVoices() {
         return new Promise((resolve) => {
             const voices = speechSynthesis.getVoices();
+            console.log('Initial voices count:', voices.length);
             if (voices.length) {
                 cachedVoices = voices;
                 voicesLoaded = true;
+                console.log('Voices loaded immediately:', voices.map(v => v.name));
                 return resolve(voices);
             }
             
@@ -556,12 +558,14 @@
                 resolved = true;
                 cachedVoices = vs;
                 voicesLoaded = true;
+                console.log('Voices loaded:', vs.length, vs.map(v => `${v.name}(${v.lang})`));
                 resolve(vs);
             };
             
-            if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+            if (speechSynthesis.onvoiceschanged !== null) {
                 speechSynthesis.onvoiceschanged = () => {
                     const vs = speechSynthesis.getVoices();
+                    console.log('voiceschanged event, count:', vs.length);
                     if (vs.length) doResolve(vs);
                 };
             }
@@ -1346,38 +1350,73 @@
 
     function populateVoiceSelector() {
         const selector = document.getElementById("voiceSelector");
-        if (!selector) return;
-        
-        const existingOptions = selector.options.length;
-        for (let i = existingOptions - 1; i > 0; i--) {
-            selector.remove(i);
+        if (!selector) {
+            console.warn('Voice selector not found');
+            return;
         }
         
+        console.log('populateVoiceSelector: cachedVoices count =', cachedVoices.length);
+        
+        // 清空现有选项（保留第一个"自动选择"）
+        while (selector.options.length > 1) {
+            selector.remove(1);
+        }
+        
+        if (!cachedVoices.length) {
+            console.warn('No voices available');
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '⚠️ 无可用语音，请刷新页面';
+            selector.appendChild(option);
+            return;
+        }
+        
+        // 过滤中文语音（宽松匹配）
         const zhVoices = cachedVoices.filter(v => {
             const vlang = (v.lang || '').toLowerCase();
-            return vlang.startsWith('zh') || /chinese|siri|ting|ting-ting|yu-shu|mei-jia|xiaoxiao|yaoyao|yunyang|yunxi|kangkang|li-mu/i.test(v.name);
-        }).sort((a, b) => {
+            const vname = (v.name || '').toLowerCase();
+            const isZh = vlang.startsWith('zh') || 
+                         vlang.includes('cn') ||
+                         /chinese|siri|ting|yu-shu|mei-jia|xiaoxiao|yaoyao|yunyang|yunxi|kangkang|li-mu|声音/i.test(vname);
+            return isZh;
+        });
+        
+        console.log('Chinese voices found:', zhVoices.length, zhVoices.map(v => v.name));
+        
+        // 如果没有中文语音，显示所有语音
+        const voicesToShow = zhVoices.length > 0 ? zhVoices : cachedVoices;
+        
+        // 排序：女声在前，男声在后
+        voicesToShow.sort((a, b) => {
             const aIsMale = isMaleVoice(a);
             const bIsMale = isMaleVoice(b);
             if (aIsMale && !bIsMale) return 1;
             if (!aIsMale && bIsMale) return -1;
-            return a.name.localeCompare(b.name);
+            return (a.name || '').localeCompare(b.name || '');
         });
         
-        zhVoices.forEach(voice => {
+        voicesToShow.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.name;
             const male = isMaleVoice(voice);
             const female = isFemaleVoice(voice);
             const g = male ? '♂' : (female ? '♀' : '?');
-            option.textContent = `${g} ${voice.name} (${voice.lang || 'zh-CN'})`;
+            option.textContent = `${g} ${voice.name} (${voice.lang || 'unknown'})`;
             selector.appendChild(option);
         });
         
+        // 恢复之前保存的选择
         const savedVoice = localStorage.getItem('selectedVoice');
         if (savedVoice) {
-            selector.value = savedVoice;
+            for (let i = 0; i < selector.options.length; i++) {
+                if (selector.options[i].value === savedVoice) {
+                    selector.selectedIndex = i;
+                    break;
+                }
+            }
         }
+        
+        console.log('Voice selector populated with', voicesToShow.length, 'voices');
     }
 
     function updateVoiceListDisplay() {
