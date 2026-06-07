@@ -457,6 +457,7 @@
             <div class="setting-item"><span>⏱️ 播放间隔(秒)</span><input type="number" id="settingIntervalSec" min="1" max="6" step="0.5" value="3"></div>
            <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select><button id="testVoiceBtn" style="margin-left:8px;padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;" type="button">🔊 测试</button></div>
+            <div class="setting-item"><span>🔈 选择语音</span><select id="voiceSelector" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;"><option value="">自动选择</option></select></div>
             <div id="currentVoiceInfo" style="font-size:12px;color:#666;margin-top:-8px;padding-left:8px;">当前语音：加载中...</div>
             <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (保存后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
             <div class="setting-item"><span>🎧 纯听模式 (隐藏输入)</span><label><input type="checkbox" id="listeningOnlyMode"> 开启后只听不写</label></div>
@@ -718,7 +719,16 @@
         
         await new Promise(r => setTimeout(r, 60));
         
-        const selectedVoice = getBestVoice(lang, appSettings.voiceGender);
+        const voiceSelector = document.getElementById("voiceSelector");
+        const customVoiceName = voiceSelector?.value;
+        
+        let selectedVoice = null;
+        if (customVoiceName) {
+            selectedVoice = cachedVoices.find(v => v.name === customVoiceName);
+        }
+        if (!selectedVoice) {
+            selectedVoice = getBestVoice(lang, appSettings.voiceGender);
+        }
         
         for (let i = 0; i < appSettings.playCount; i++) {
             if (speechCancelFlag || !dictationState.active) break;
@@ -1306,7 +1316,39 @@
             info.innerHTML = `<strong>当前选择：</strong>${gender === 'female' ? '女声' : '男声'} | 中文：${escapeHtml(zhName)} | 英文：${escapeHtml(enName)}`;
         }
         
+        populateVoiceSelector();
         updateVoiceListDisplay();
+    }
+
+    function populateVoiceSelector() {
+        const selector = document.getElementById("voiceSelector");
+        if (!selector) return;
+        
+        const existingOptions = selector.options.length;
+        for (let i = existingOptions - 1; i > 0; i--) {
+            selector.remove(i);
+        }
+        
+        const zhVoices = cachedVoices.filter(v => v.lang.startsWith('zh-CN')).sort((a, b) => {
+            const aIsMale = isMaleVoice(a);
+            const bIsMale = isMaleVoice(b);
+            if (aIsMale && !bIsMale) return 1;
+            if (!aIsMale && bIsMale) return -1;
+            return a.name.localeCompare(b.name);
+        });
+        
+        zhVoices.forEach(voice => {
+            const option = document.createElement('option');
+            option.value = voice.name;
+            const genderTag = isMaleVoice(voice) ? '♂' : (isFemaleVoice(voice) ? '♀' : '?');
+            option.textContent = `${genderTag} ${voice.name} (${voice.lang})`;
+            selector.appendChild(option);
+        });
+        
+        const savedVoice = localStorage.getItem('selectedVoice');
+        if (savedVoice) {
+            selector.value = savedVoice;
+        }
     }
 
     function updateVoiceListDisplay() {
@@ -1348,14 +1390,27 @@
             loadVoices().then(() => testCurrentVoice());
             return;
         }
+        
+        const voiceSelector = document.getElementById("voiceSelector");
+        const customVoiceName = voiceSelector?.value;
+        
+        let tempVoice = null;
+        if (customVoiceName) {
+            tempVoice = cachedVoices.find(v => v.name === customVoiceName);
+        }
+        
         const gender = document.getElementById("settingVoiceGender")?.value || appSettings.voiceGender;
-        const testText = gender === 'male' ? "你好，这是男声的语音测试。" : "你好，这是女声的语音测试。";
-        const tempVoice = getBestVoice('zh-CN', gender);
+        if (!tempVoice) {
+            tempVoice = getBestVoice('zh-CN', gender);
+        }
         
         if (!tempVoice) {
             alert('未找到可用的中文语音，请检查系统设置');
             return;
         }
+        
+        const isMaleVoice = isMaleVoice(tempVoice);
+        const testText = isMaleVoice ? "你好，这是男声的语音测试。" : "你好，这是女声的语音测试。";
         
         speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(testText);
@@ -1379,7 +1434,8 @@
         
         const info = document.getElementById("currentVoiceInfo");
         if (info) {
-            info.innerHTML = `<strong>当前选择：</strong>${gender === 'female' ? '女声 ♀' : '男声 ♂'} | 使用语音：<span style="color:#10b981;font-weight:bold">${escapeHtml(tempVoice.name)}</span>`;
+            const genderTag = isMaleVoice ? '男声 ♂' : '女声 ♀';
+            info.innerHTML = `<strong>当前选择：</strong>${genderTag} | 使用语音：<span style="color:#10b981;font-weight:bold">${escapeHtml(tempVoice.name)}</span>`;
         }
     }
 
