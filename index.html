@@ -622,15 +622,16 @@
 
     function isFemaleVoice(voice) {
         const nameLower = voice.name.toLowerCase();
+        // 先检查是否是男声，如果是则返回false
+        if (isMaleVoice(voice)) return false;
+        
         const femalePatterns = [
             /^.*female.*$/i, /^.*woman.*$/i, /^.*girl.*$/i,
-            /xiaoxiao/i, /xiaoyi/i, /xiaoxuan/i, /yaoyao/i, /huihui/i, /tingting/i,
-            /zira/i, /samantha/i, /luna/i, /zhiyu/i, /yundai/i, /xiaoyan/i, /qiaoyan/i,
-            /xiuxiu/i, /nanami/i, /hiu/i, /sara/i, /mary/i, /susan/i, /kate/i, /emma/i, /olivia/i,
-            /jenny/i, /aria/i, /ting/i,
-            /ting-ting/i, /yu-shu/i, /yushu/i, /tian-tian/i, /tiantian/i, /mei-jia/i, /meijia/i,
-            /siri.*女/i, /语舒/i,
-            /siri声音2/i, /siri.*2$/i, /声音2/i
+            /xiaoxiao/i, /xiaoyi/i, /xiaoxuan/i, /yaoyao/i, /huihui/i,
+            /zira/i, /samantha/i, /luna/i, /zhiyu/i, /yundai/i, /xiaoyan/i,
+            /jenny/i, /aria/i, /nanami/i,
+            /ting-ting/i, /yu-shu/i, /tian-tian/i, /mei-jia/i,
+            /siri声音2/i, /声音2/i, /siri.*女/i, /语舒/i, /婷婷/i
         ];
         return femalePatterns.some(p => p.test(nameLower));
     }
@@ -641,11 +642,9 @@
             /^.*male.*$/i, /^.*man.*$/i, /^.*boy.*$/i,
             /yunyang/i, /yunxi/i, /yunjian/i, /yunxia/i, /kangkang/i,
             /david/i, /alex/i, /guy/i, /daniel/i, /james/i, /john/i, /tom/i,
-            /michael/i, /william/i, /richard/i, /charles/i, /joseph/i, /christopher/i,
-            /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaowei/i, /jiawei/i, /xiaorun/i,
-            /yukai/i, /yuming/i, /yuncai/i, /jiayou/i,
-            /li-mu/i, /limu/i, /ji-hong/i, /jihong/i, /siri.*男/i,
-            /siri声音1/i, /siri.*1$/i, /声音1/i
+            /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaowei/i, /jiawei/i,
+            /li-mu/i, /limu/i, /ji-hong/i, /jihong/i,
+            /siri声音1/i, /声音1/i, /siri.*男/i
         ];
         return malePatterns.some(p => p.test(nameLower));
     }
@@ -1377,25 +1376,51 @@
             const vname = (v.name || '').toLowerCase();
             const isZh = vlang.startsWith('zh') || 
                          vlang.includes('cn') ||
-                         /chinese|siri|ting|yu-shu|mei-jia|xiaoxiao|yaoyao|yunyang|yunxi|kangkang|li-mu|声音/i.test(vname);
+                         /chinese|siri|ting|yu-shu|mei-jia|xiaoxiao|yaoyao|yunyang|yunxi|kangkang|li-mu|声音|婷婷|语舒/i.test(vname);
             return isZh;
         });
         
-        console.log('Chinese voices found:', zhVoices.length, zhVoices.map(v => v.name));
+        console.log('Chinese voices found:', zhVoices.length, zhVoices.map(v => `${v.name}(${v.lang})`));
         
         // 如果没有中文语音，显示所有语音
         const voicesToShow = zhVoices.length > 0 ? zhVoices : cachedVoices;
         
-        // 排序：女声在前，男声在后
-        voicesToShow.sort((a, b) => {
-            const aIsMale = isMaleVoice(a);
-            const bIsMale = isMaleVoice(b);
-            if (aIsMale && !bIsMale) return 1;
-            if (!aIsMale && bIsMale) return -1;
-            return (a.name || '').localeCompare(b.name || '');
+        // 去重：按名称去重，保留第一个
+        const seen = new Set();
+        const uniqueVoices = voicesToShow.filter(v => {
+            const key = v.name + '|' + v.lang;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
         });
         
-        voicesToShow.forEach(voice => {
+        // 分类：男声、女声、未知
+        const maleVoices = [];
+        const femaleVoices = [];
+        const unknownVoices = [];
+        
+        uniqueVoices.forEach(v => {
+            if (isMaleVoice(v)) {
+                maleVoices.push(v);
+            } else if (isFemaleVoice(v)) {
+                femaleVoices.push(v);
+            } else {
+                unknownVoices.push(v);
+            }
+        });
+        
+        console.log('Male voices:', maleVoices.length, maleVoices.map(v => v.name));
+        console.log('Female voices:', femaleVoices.length, femaleVoices.map(v => v.name));
+        console.log('Unknown voices:', unknownVoices.length, unknownVoices.map(v => v.name));
+        
+        // 添加选项：女声在前
+        femaleVoices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        maleVoices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        unknownVoices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        
+        const allSorted = [...femaleVoices, ...maleVoices, ...unknownVoices];
+        
+        allSorted.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.name;
             const male = isMaleVoice(voice);
@@ -1416,7 +1441,7 @@
             }
         }
         
-        console.log('Voice selector populated with', voicesToShow.length, 'voices');
+        console.log('Voice selector populated with', allSorted.length, 'voices (female:', femaleVoices.length, ', male:', maleVoices.length, ')');
     }
 
     function updateVoiceListDisplay() {
