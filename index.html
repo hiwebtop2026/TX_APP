@@ -599,10 +599,10 @@
         const nameLower = voice.name.toLowerCase();
         const femalePatterns = [
             /^.*female.*$/i, /^.*woman.*$/i, /^.*girl.*$/i,
-            /yaoyao/i, /xiaoxiao/i, /huihui/i, /tingting/i, /zira/i, /samantha/i, /luna/i,
-            /zhiyu/i, /yundai/i, /xiaoyan/i, /qiaoyan/i, /xiuxiu/i, /xiaohan/i,
-            /jenny/i, /aria/i, /nanami/i, /hiu/i, /sara/i, /mary/i, /susan/i, /kate/i, /emma/i, /olivia/i,
-            /mei.*lan/i, /ling/i, /bai.*ling/i, /ting/i
+            /xiaoxiao/i, /xiaoyi/i, /xiaoxuan/i, /yaoyao/i, /huihui/i, /tingting/i,
+            /zira/i, /samantha/i, /luna/i, /zhiyu/i, /yundai/i, /xiaoyan/i, /qiaoyan/i,
+            /xiuxiu/i, /nanami/i, /hiu/i, /sara/i, /mary/i, /susan/i, /kate/i, /emma/i, /olivia/i,
+            /jenny/i, /aria/i, /ting/i
         ];
         return femalePatterns.some(p => p.test(nameLower));
     }
@@ -611,11 +611,11 @@
         const nameLower = voice.name.toLowerCase();
         const malePatterns = [
             /^.*male.*$/i, /^.*man.*$/i, /^.*boy.*$/i,
-            /david/i, /alex/i, /yiyun/i, /yunjian/i, /yuncai/i,
-            /yunyang/i, /kangkang/i, /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaofei/i,
-            /yukai/i, /yuming/i, /xiaohan/i, /xiaoguang/i, /xiaowei/i, /jiayou/i,
-            /guy/i, /daniel/i, /james/i, /john/i, /tom/i, /michael/i, /william/i, /richard/i,
-            /charles/i, /joseph/i, /christopher/i, /ryan/i, /benjamin/i
+            /yunyang/i, /yunxi/i, /yunjian/i, /yunxia/i, /kangkang/i,
+            /david/i, /alex/i, /guy/i, /daniel/i, /james/i, /john/i, /tom/i,
+            /michael/i, /william/i, /richard/i, /charles/i, /joseph/i, /christopher/i,
+            /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaowei/i, /jiawei/i, /xiaorun/i,
+            /yukai/i, /yuming/i, /yuncai/i, /jiayou/i
         ];
         return malePatterns.some(p => p.test(nameLower));
     }
@@ -628,15 +628,17 @@
         }
 
         const preferredMaleNames = lang === 'zh-CN' 
-            ? ['YunyangNeural', 'KangkangNeural', 'YunxiNeural', 'Yunyang', 'Kangkang', 'Yunxi', 
-               'Microsoft Yunyang', 'Microsoft Kangkang', 'Microsoft Yunxi', 
-               'YunJianNeural', 'YunHaoNeural', 'YunCaiNeural', 'YunJiaNeural',
-               'XiaojunNeural', 'Xiaojun', 'JiaweiNeural', 'Jiawei', 'XiaorunNeural', 'Xiaorun']
+            ? ['zh-CN-YunyangNeural', 'YunyangNeural', 'zh-CN-YunxiNeural', 'YunxiNeural',
+               'zh-CN-YunjianNeural', 'YunjianNeural', 'zh-CN-YunxiaNeural', 'YunxiaNeural',
+               'Yunyang', 'Yunxi', 'Yunjian', 'Yunxia', 'Microsoft Yunyang', 'Microsoft Yunxi',
+               'Microsoft Yunjian', 'Microsoft Yunxia', 'KangkangNeural', 'Kangkang']
             : ['David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel', 'James', 'John'];
 
         const preferredFemaleNames = lang === 'zh-CN' 
-            ? ['YaoyaoNeural', 'XiaoxiaoNeural', 'Yaoyao', 'Xiaoxiao', 'Microsoft Yaoyao', 'Microsoft Xiaoxiao', 
-               'Google 普通话', 'Zhiyu', 'Huihui', 'HuihuiNeural', 'YunDaiNeural', 'XiaoyanNeural']
+            ? ['zh-CN-XiaoxiaoNeural', 'XiaoxiaoNeural', 'zh-CN-XiaoyiNeural', 'XiaoyiNeural',
+               'zh-CN-XiaoxuanNeural', 'XiaoxuanNeural', 'Xiaoxiao', 'Xiaoyi', 'Xiaoxuan',
+               'Microsoft Xiaoxiao', 'Microsoft Xiaoyi', 'Microsoft Xiaoxuan', 'YaoyaoNeural',
+               'Yaoyao', 'Microsoft Yaoyao', 'HuihuiNeural', 'Huihui', 'Zhiyu']
             : ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
 
         const targetNames = gender === 'male' ? preferredMaleNames : preferredFemaleNames;
