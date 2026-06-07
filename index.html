@@ -514,9 +514,10 @@
 
     // 语音
     let speechCancelFlag = false;
+    let speechTimeoutId = null;
     async function speakText(text) {
         if(!text) return;
-        speechSynthesis.cancel();
+        cancelSpeech();
         speechCancelFlag = false;
         await new Promise(r => setTimeout(r, 60));
         const isChinese = /[\u4e00-\u9fa5]/.test(text);
@@ -538,10 +539,21 @@
                 utter.onerror = () => resolve();
                 speechSynthesis.speak(utter);
             });
-            if(i !== appSettings.playCount-1 && !speechCancelFlag && dictationState.active) await new Promise(r => setTimeout(r, appSettings.intervalSec * 1000));
+            if(i !== appSettings.playCount-1 && !speechCancelFlag && dictationState.active) {
+                await new Promise(r => {
+                    speechTimeoutId = setTimeout(r, appSettings.intervalSec * 1000);
+                });
+            }
         }
     }
-    function cancelSpeech() { speechCancelFlag = true; speechSynthesis.cancel(); }
+    function cancelSpeech() { 
+        speechCancelFlag = true; 
+        speechSynthesis.cancel();
+        if(speechTimeoutId) {
+            clearTimeout(speechTimeoutId);
+            speechTimeoutId = null;
+        }
+    }
 
     // Canvas 手写板绘图（仅田字格模式）
     let drawing = false;
