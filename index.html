@@ -456,7 +456,8 @@
             <div class="setting-item"><span>🔊 自动播放次数</span><input type="number" id="settingPlayCount" min="1" max="5" value="3"></div>
             <div class="setting-item"><span>⏱️ 播放间隔(秒)</span><input type="number" id="settingIntervalSec" min="1" max="6" step="0.5" value="3"></div>
             <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
-            <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select></div>
+            <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select><button id="testVoiceBtn" style="margin-left:8px;padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;" type="button">🔊 测试</button></div>
+            <div id="currentVoiceInfo" style="font-size:12px;color:#666;margin-top:-8px;padding-left:8px;">当前语音：加载中...</div>
             <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (保存后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
             <div class="setting-item"><span>🎧 纯听模式 (隐藏输入)</span><label><input type="checkbox" id="listeningOnlyMode"> 开启后只听不写</label></div>
             <div class="setting-item" id="autoWaitGroup"><span>⏲️ 自动提交等待(秒)</span><input type="number" id="autoWaitSec" min="1" max="8" value="2"></div>
@@ -594,24 +595,50 @@
         return result || '零';
     }
 
+    function isFemaleVoice(voice) {
+        const femaleKeywords = ['female', 'woman', 'xiao', 'yaoyao', 'xiaoxiao', 'hui', 'ting', 'zira', 'samantha', 'luna', '女', '晓', '瑶', '婷', '惠'];
+        const nameLower = voice.name.toLowerCase();
+        return femaleKeywords.some(k => nameLower.includes(k.toLowerCase()));
+    }
+
+    function isMaleVoice(voice) {
+        const maleKeywords = ['male', 'man', 'yunyang', 'kangkang', 'david', 'alex', 'danny', 'yunxi', 'jian', 'hao', '男', '云', '康', '浩', '健'];
+        const nameLower = voice.name.toLowerCase();
+        return maleKeywords.some(k => nameLower.includes(k.toLowerCase()));
+    }
+
     function getBestVoice(lang, gender) {
         const langVoices = cachedVoices.filter(v => v.lang.startsWith(lang));
         if (!langVoices.length) return null;
-        
+
         const preferredNames = lang === 'zh-CN' 
             ? gender === 'female' 
-                ? ['Microsoft Yaoyao', 'Microsoft Xiaoxiao', 'Google 普通话', 'Zhiyu', 'Luna']
-                : ['Microsoft Yunyang', 'Microsoft Kangkang', 'Google 普通话', 'Danny']
+                ? ['Microsoft Yaoyao', 'Yaoyao', 'Microsoft Xiaoxiao', 'Xiaoxiao', 'XiaoxiaoNeural', 'YaoyaoNeural', 'Google 普通话', 'Zhiyu', 'Luna', 'Huihui', 'Tingting']
+                : ['Microsoft Yunyang', 'Yunyang', 'Microsoft Kangkang', 'Kangkang', 'Yunxi', 'Cloud', 'KangkangNeural', 'YunyangNeural', 'YunxiNeural']
             : gender === 'female'
-                ? ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Google US English Female']
-                : ['Alex', 'Google UK English Male', 'Microsoft David', 'Google US English Male'];
+                ? ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Google US English Female', 'Jenny', 'Aria', 'Nanami', 'Hiu']
+                : ['Alex', 'Google UK English Male', 'Microsoft David', 'Google US English Male', 'Guy', 'Daniel', 'Danny'];
 
         for (const name of preferredNames) {
-            const voice = langVoices.find(v => v.name.includes(name));
+            const voice = langVoices.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
             if (voice) return voice;
         }
 
-        const neuralVoice = langVoices.find(v => v.name.includes('Neural'));
+        const femaleVoices = langVoices.filter(v => isFemaleVoice(v));
+        const maleVoices = langVoices.filter(v => isMaleVoice(v));
+
+        if (gender === 'female' && femaleVoices.length) {
+            const neuralFemale = femaleVoices.find(v => v.name.toLowerCase().includes('neural'));
+            if (neuralFemale) return neuralFemale;
+            return femaleVoices[0];
+        }
+        if (gender === 'male' && maleVoices.length) {
+            const neuralMale = maleVoices.find(v => v.name.toLowerCase().includes('neural'));
+            if (neuralMale) return neuralMale;
+            return maleVoices[0];
+        }
+
+        const neuralVoice = langVoices.find(v => v.name.toLowerCase().includes('neural'));
         if (neuralVoice) return neuralVoice;
 
         const googleVoice = langVoices.find(v => v.name.includes('Google'));
@@ -1165,6 +1192,7 @@
         appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value);
         appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked;
         saveSettingsToLocal();
+        updateVoiceInfo();
         alert("设置已保存");
     }
 
@@ -1219,11 +1247,51 @@
         document.getElementById("customSetList")?.addEventListener('click', e => { const btn = e.target; if(btn.classList.contains('btn')) { const selectId = btn.dataset.select; if(selectId) selectCustomSet(selectId); const editId = btn.dataset.edit; if(editId) editCustomSet(editId); const delId = btn.dataset.del; if(delId) deleteCustomSet(delId); } });
         document.getElementById("settingRate")?.addEventListener('input', (e) => document.getElementById("rateValue").innerText = parseFloat(e.target.value).toFixed(2));
         document.getElementById("listeningOnlyMode")?.addEventListener('change', (e) => { if(dictationState.active) alert("请在下次听写生效"); });
+        document.getElementById("settingVoiceGender")?.addEventListener('change', (e) => { updateVoiceInfo(); });
+        document.getElementById("testVoiceBtn")?.addEventListener('click', () => testCurrentVoice());
         document.querySelectorAll('.nav-item').forEach(nav => { nav.addEventListener('click', () => { const target = nav.dataset.page; if(target === 'records') showPage('pageRecords'); else if(target) showPage(target); }); });
+    }
+
+    function updateVoiceInfo() {
+        if (!voicesLoaded) {
+            loadVoices().then(() => updateVoiceInfo());
+            return;
+        }
+        const gender = document.getElementById("settingVoiceGender")?.value || appSettings.voiceGender;
+        const zhVoice = getBestVoice('zh-CN', gender);
+        const enVoice = getBestVoice('en-US', gender);
+        const info = document.getElementById("currentVoiceInfo");
+        if (info) {
+            const zhName = zhVoice ? zhVoice.name : '未找到';
+            const enName = enVoice ? enVoice.name : '未找到';
+            info.innerHTML = `中文：${escapeHtml(zhName)} | 英文：${escapeHtml(enName)}`;
+        }
+    }
+
+    function testCurrentVoice() {
+        if (!voicesLoaded) {
+            loadVoices().then(() => testCurrentVoice());
+            return;
+        }
+        const gender = document.getElementById("settingVoiceGender")?.value || appSettings.voiceGender;
+        const langVoices = cachedVoices.filter(v => v.lang.startsWith('zh-CN'));
+        const testText = "你好，这是听写助手的语音测试。";
+        const tempVoice = getBestVoice('zh-CN', gender);
+        
+        speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(testText);
+        utter.lang = 'zh-CN';
+        if (tempVoice) {
+            utter.voice = tempVoice;
+        }
+        utter.rate = getOptimalRate('zh-CN');
+        utter.pitch = getOptimalPitch('zh-CN');
+        speechSynthesis.speak(utter);
     }
 
     if(!localStorage.getItem('studentName')) localStorage.setItem('studentName', prompt("欢迎使用听写助手，请输入你的名字", "小学霸") || "同学");
     loadStorage(); bindEvents(); refreshHomeStats();
+    setTimeout(() => { loadVoices().then(() => updateVoiceInfo()); }, 500);
 </script>
 </body>
 </html>
