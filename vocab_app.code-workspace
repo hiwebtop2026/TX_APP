@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../vocab_app"
+		},
+		{
+			"name": "TX_APP",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
