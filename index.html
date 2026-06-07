@@ -455,7 +455,7 @@
         <div class="card">
             <div class="setting-item"><span>🔊 自动播放次数</span><input type="number" id="settingPlayCount" min="1" max="5" value="3"></div>
             <div class="setting-item"><span>⏱️ 播放间隔(秒)</span><input type="number" id="settingIntervalSec" min="1" max="6" step="0.5" value="3"></div>
-            <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
+           <div class="setting-item"><span>🗣️ 语速 (0.5x - 2x)</span><div><input type="range" id="settingRate" min="0.5" max="2" step="0.05" value="1"><span id="rateValue" class="range-value">1.0</span></div></div>
             <div class="setting-item"><span>🎙️ 语音性别</span><select id="settingVoiceGender" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;"><option value="female">女声 (温柔)</option><option value="male">男声 (清晰)</option></select><button id="testVoiceBtn" style="margin-left:8px;padding:8px 12px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer;" type="button">🔊 测试</button></div>
             <div id="currentVoiceInfo" style="font-size:12px;color:#666;margin-top:-8px;padding-left:8px;">当前语音：加载中...</div>
             <div class="setting-item"><span>🤖 听写模式</span><select id="dictationMode"><option value="auto">自动模式 (保存后自动播放下一个)</option><option value="manual">手动模式 (手动下一词)</option></select></div>
@@ -482,7 +482,7 @@
     </div>
 
     <!-- 词库编辑模态框 -->
-    <div id="editSetModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+    <div id="editSetModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;z-index:1000;">
         <div style="background:white;border-radius:12px;width:90%;max-width:400px;max-height:80vh;overflow:hidden;">
             <div class="header" style="padding:12px 16px;border-bottom:1px solid #eee;"><span style="flex:1;">✏️ 编辑词库</span><button onclick="closeEditModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">×</button></div>
             <div style="padding:16px;">
