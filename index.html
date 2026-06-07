@@ -1121,9 +1121,18 @@
     }
 
     async function playCurrentWord() {
-        if(!dictationState.active) return;
-        if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
+        if(!dictationState.active) {
+            console.log('playCurrentWord: not active, return');
+            return;
+        }
+        
+        // 取消之前的定时器
+        cancelDictTimers();
+        dictationState.waitingForInput = false;
+        
         const word = dictationState.wordList[dictationState.currentIndex];
+        console.log('playCurrentWord: index=', dictationState.currentIndex, 'word=', word, 'mode=', appSettings.dictationMode, 'listeningOnly=', dictationState.listeningOnly);
+        
         if(word) await speakText(word);
         
         // 自动模式处理
@@ -1131,26 +1140,35 @@
             if(dictationState.listeningOnly) {
                 // 纯听模式：自动跳到下一词
                 dictationState.waitingForInput = true;
-                document.getElementById("autoStatusTip").innerHTML = `🎧 纯听模式：${appSettings.autoWaitSec}秒后自动播放下一词`;
+                const waitSec = appSettings.autoWaitSec || 3;
+                document.getElementById("autoStatusTip").innerHTML = `🎧 纯听模式：${waitSec}秒后自动播放下一词`;
+                console.log('Setting auto timer for next word in', waitSec, 'seconds');
+                
                 dictationState.inputTimer = setTimeout(() => {
+                    console.log('Auto timer fired, active=', dictationState.active, 'waitingForInput=', dictationState.waitingForInput);
                     if(dictationState.active && dictationState.waitingForInput) {
+                        dictationState.waitingForInput = false;
                         // 跳到下一词
                         if(dictationState.currentIndex < dictationState.wordList.length - 1) {
                             dictationState.currentIndex++;
                             updateProgress();
+                            console.log('Jumping to next word, index=', dictationState.currentIndex);
                             playCurrentWord();
                         } else {
                             // 听写完成
+                            console.log('All words finished');
                             finishDictation();
                         }
                     }
-                }, appSettings.autoWaitSec * 1000);
+                }, waitSec * 1000);
             } else {
                 // 普通模式：等待输入
                 dictationState.waitingForInput = true;
                 document.getElementById("autoStatusTip").innerHTML = `✍️ 请在输入区域作答 (${appSettings.autoWaitSec}秒后自动保存)`;
                 dictationState.inputTimer = setTimeout(() => { if(dictationState.active && dictationState.waitingForInput) saveAndNext(); }, appSettings.autoWaitSec * 1000);
             }
+        } else {
+            console.log('Not auto mode or not active, no auto jump');
         }
     }
 
