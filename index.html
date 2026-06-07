@@ -1089,7 +1089,12 @@
             if(normalBtnRow) normalBtnRow.style.display = "none";
             if(actionBtnRow) actionBtnRow.style.display = "none";
             if(pureListenBtnRow) pureListenBtnRow.style.display = "flex";
-            document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：点击下一词切换";
+            // 根据模式显示不同的提示
+            if(appSettings.dictationMode === "auto") {
+                document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：自动播放下一词";
+            } else {
+                document.getElementById("autoStatusTip").innerHTML = "🎧 纯听模式：点击下一词切换";
+            }
         } else {
             document.getElementById("dynamicInputArea").style.display = "block";
             if(normalBtnRow) normalBtnRow.style.display = "flex";
@@ -1120,10 +1125,32 @@
         if(dictationState.waitingForInput) { cancelDictTimers(); dictationState.waitingForInput = false; }
         const word = dictationState.wordList[dictationState.currentIndex];
         if(word) await speakText(word);
-        if(!dictationState.listeningOnly && appSettings.dictationMode === "auto" && dictationState.active) {
-            dictationState.waitingForInput = true;
-            document.getElementById("autoStatusTip").innerHTML = `✍️ 请在输入区域作答 (${appSettings.autoWaitSec}秒后自动保存)`;
-            dictationState.inputTimer = setTimeout(() => { if(dictationState.active && dictationState.waitingForInput) saveAndNext(); }, appSettings.autoWaitSec * 1000);
+        
+        // 自动模式处理
+        if(appSettings.dictationMode === "auto" && dictationState.active) {
+            if(dictationState.listeningOnly) {
+                // 纯听模式：自动跳到下一词
+                dictationState.waitingForInput = true;
+                document.getElementById("autoStatusTip").innerHTML = `🎧 纯听模式：${appSettings.autoWaitSec}秒后自动播放下一词`;
+                dictationState.inputTimer = setTimeout(() => {
+                    if(dictationState.active && dictationState.waitingForInput) {
+                        // 跳到下一词
+                        if(dictationState.currentIndex < dictationState.wordList.length - 1) {
+                            dictationState.currentIndex++;
+                            updateProgress();
+                            playCurrentWord();
+                        } else {
+                            // 听写完成
+                            finishDictation();
+                        }
+                    }
+                }, appSettings.autoWaitSec * 1000);
+            } else {
+                // 普通模式：等待输入
+                dictationState.waitingForInput = true;
+                document.getElementById("autoStatusTip").innerHTML = `✍️ 请在输入区域作答 (${appSettings.autoWaitSec}秒后自动保存)`;
+                dictationState.inputTimer = setTimeout(() => { if(dictationState.active && dictationState.waitingForInput) saveAndNext(); }, appSettings.autoWaitSec * 1000);
+            }
         }
     }
 
