@@ -549,16 +549,36 @@
                 voicesLoaded = true;
                 return resolve(voices);
             }
+            
+            let resolved = false;
+            const doResolve = (vs) => {
+                if (resolved) return;
+                resolved = true;
+                cachedVoices = vs;
+                voicesLoaded = true;
+                resolve(vs);
+            };
+            
+            if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+                speechSynthesis.onvoiceschanged = () => {
+                    const vs = speechSynthesis.getVoices();
+                    if (vs.length) doResolve(vs);
+                };
+            }
+            
             let retry = 0;
             const timer = setInterval(() => {
-                const voices = speechSynthesis.getVoices();
-                if (voices.length || ++retry > 50) {
+                const vs = speechSynthesis.getVoices();
+                if (vs.length || ++retry > 60) {
                     clearInterval(timer);
-                    cachedVoices = voices;
-                    voicesLoaded = true;
-                    resolve(voices);
+                    doResolve(vs);
                 }
             }, 100);
+            
+            setTimeout(() => {
+                const vs = speechSynthesis.getVoices();
+                doResolve(vs);
+            }, 5000);
         });
     }
 
@@ -627,68 +647,61 @@
     }
 
     function getBestVoice(lang, gender) {
-        const langVoices = cachedVoices.filter(v => v.lang.startsWith(lang));
+        const isChinese = lang === 'zh-CN' || lang.startsWith('zh');
+        const langPatterns = isChinese 
+            ? ['zh-CN', 'zh_CN', 'zh-Hans', 'zh-hans', 'zh-Hans-CN', 'zh-Hant', 'zh-TW', 'zh'] 
+            : ['en-US', 'en_US', 'en-GB', 'en'];
+        
+        let langVoices = cachedVoices.filter(v => {
+            const vlang = (v.lang || '').toLowerCase();
+            return langPatterns.some(p => vlang.startsWith(p.toLowerCase()));
+        });
+        
+        if (!langVoices.length) {
+            langVoices = cachedVoices.filter(v => /zh|chinese|siri/i.test(v.name + ' ' + v.lang));
+        }
+        
         if (!langVoices.length) {
             console.warn('No voices found for lang:', lang);
-            return null;
+            return cachedVoices.length > 0 ? cachedVoices[0] : null;
         }
 
-        const preferredMaleNames = lang === 'zh-CN' 
-            ? ['Siri声音1', 'Siri 声音1', 'Siri男声', 'zh-CN-YunyangNeural', 'YunyangNeural', 'zh-CN-YunxiNeural', 'YunxiNeural',
-               'zh-CN-YunjianNeural', 'YunjianNeural', 'zh-CN-YunxiaNeural', 'YunxiaNeural',
-               'Yunyang', 'Yunxi', 'Yunjian', 'Yunxia', 'Microsoft Yunyang', 'Microsoft Yunxi',
-               'Microsoft Yunjian', 'Microsoft Yunxia', 'KangkangNeural', 'Kangkang',
-               'Li-mu', 'Li-mu-compact', 'com.apple.ttsbundle.Li-mu', 'Ji-hong']
-            : ['David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel', 'James', 'John'];
+        const preferredMaleNames = ['Siri声音1', 'Siri 声音1', 'Siri 男声', 'Siri Male', 
+            'YunyangNeural', 'Yunyang', 'Yunxi', 'Kangkang', 'KangkangNeural',
+            'Li-mu', 'Li-mu-compact', 'Ji-hong', 'Limu', 'Jihong',
+            'David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel'];
 
-        const preferredFemaleNames = lang === 'zh-CN' 
-            ? ['zh-CN-XiaoxiaoNeural', 'XiaoxiaoNeural', 'zh-CN-XiaoyiNeural', 'XiaoyiNeural',
-               'zh-CN-XiaoxuanNeural', 'XiaoxuanNeural', 'Xiaoxiao', 'Xiaoyi', 'Xiaoxuan',
-               'Microsoft Xiaoxiao', 'Microsoft Xiaoyi', 'Microsoft Xiaoxuan', 'YaoyaoNeural',
-               'Yaoyao', 'Microsoft Yaoyao', 'HuihuiNeural', 'Huihui', 'Zhiyu',
-               'Ting-Ting', 'Ting-Ting-compact', 'com.apple.ttsbundle.Ting-Ting',
-               'Yu-shu', 'Yu-shu-compact', 'com.apple.ttsbundle.Yu-shu',
-               'Tian-Tian', 'Tian-Tian-compact', 'com.apple.ttsbundle.Tian-Tian',
-               'Mei-Jia', 'Mei-Jia-compact', 'Siri 女声', '语舒']
-            : ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
+        const preferredFemaleNames = ['Siri声音2', 'Siri 声音2', 'Siri 女声', 'Siri Female',
+            'XiaoxiaoNeural', 'Xiaoxiao', 'Xiaoyi', 'XiaoyiNeural', 'Yaoyao', 'YaoyaoNeural', 
+            'Huihui', 'HuihuiNeural', 'Zhiyu', 'Ting-Ting', 'Yu-shu', 'Tian-Tian', 'Mei-Jia',
+            'Samantha', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
 
         const targetNames = gender === 'male' ? preferredMaleNames : preferredFemaleNames;
         
         for (const name of targetNames) {
             const voice = langVoices.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
             if (voice) {
-                console.log(`Voice selected: "${voice.name}" for gender: ${gender}`);
+                console.log('Voice selected (preferred):', voice.name, 'for gender:', gender);
                 return voice;
             }
         }
 
-        const allVoicesByGender = langVoices.filter(v => {
-            if (gender === 'male') return isMaleVoice(v);
-            return isFemaleVoice(v);
+        const voicesByGender = langVoices.filter(v => {
+            return gender === 'male' ? isMaleVoice(v) : isFemaleVoice(v);
         });
 
-        if (allVoicesByGender.length) {
-            const neuralVoice = allVoicesByGender.find(v => /neural/i.test(v.name));
-            if (neuralVoice) {
-                console.log(`Voice selected (neural): "${neuralVoice.name}" for gender: ${gender}`);
-                return neuralVoice;
-            }
-            const desktopVoice = allVoicesByGender.find(v => /desktop/i.test(v.name));
-            if (desktopVoice) {
-                console.log(`Voice selected (desktop): "${desktopVoice.name}" for gender: ${gender}`);
-                return desktopVoice;
-            }
-            console.log(`Voice selected (fallback): "${allVoicesByGender[0].name}" for gender: ${gender}`);
-            return allVoicesByGender[0];
+        if (voicesByGender.length) {
+            console.log('Voice selected (gender):', voicesByGender[0].name, 'for gender:', gender);
+            return voicesByGender[0];
         }
 
         const defaultVoice = langVoices.find(v => v.default);
         if (defaultVoice) {
-            console.log(`Voice selected (default): "${defaultVoice.name}" for gender: ${gender}`);
+            console.log('Voice selected (default):', defaultVoice.name, 'for gender:', gender);
             return defaultVoice;
         }
         
-        console.log(`Voice selected (first): "${langVoices[0].name}" for gender: ${gender}`);
+        console.log('Voice selected (first):', langVoices[0].name, 'for gender:', gender);
         return langVoices[0];
     }
 
@@ -1242,6 +1255,15 @@
         appSettings.dictationMode = document.getElementById("dictationMode").value;
         appSettings.autoWaitSec = parseFloat(document.getElementById("autoWaitSec").value);
         appSettings.listeningOnly = document.getElementById("listeningOnlyMode").checked;
+        const voiceSelect = document.getElementById("voiceSelector");
+        if (voiceSelect) {
+            const selectedVoiceName = voiceSelect.value;
+            if (selectedVoiceName) {
+                localStorage.setItem('selectedVoice', selectedVoiceName);
+            } else {
+                localStorage.removeItem('selectedVoice');
+            }
+        }
         saveSettingsToLocal();
         updateVoiceInfo();
         alert("设置已保存");
@@ -1331,7 +1353,10 @@
             selector.remove(i);
         }
         
-        const zhVoices = cachedVoices.filter(v => v.lang.startsWith('zh-CN')).sort((a, b) => {
+        const zhVoices = cachedVoices.filter(v => {
+            const vlang = (v.lang || '').toLowerCase();
+            return vlang.startsWith('zh') || /chinese|siri|ting|ting-ting|yu-shu|mei-jia|xiaoxiao|yaoyao|yunyang|yunxi|kangkang|li-mu/i.test(v.name);
+        }).sort((a, b) => {
             const aIsMale = isMaleVoice(a);
             const bIsMale = isMaleVoice(b);
             if (aIsMale && !bIsMale) return 1;
@@ -1342,8 +1367,10 @@
         zhVoices.forEach(voice => {
             const option = document.createElement('option');
             option.value = voice.name;
-            const genderTag = isMaleVoice(voice) ? '♂' : (isFemaleVoice(voice) ? '♀' : '?');
-            option.textContent = `${genderTag} ${voice.name} (${voice.lang})`;
+            const male = isMaleVoice(voice);
+            const female = isFemaleVoice(voice);
+            const g = male ? '♂' : (female ? '♀' : '?');
+            option.textContent = `${g} ${voice.name} (${voice.lang || 'zh-CN'})`;
             selector.appendChild(option);
         });
         
@@ -1411,8 +1438,8 @@
             return;
         }
         
-        const isMaleVoice = isMaleVoice(tempVoice);
-        const testText = isMaleVoice ? "你好，这是男声的语音测试。" : "你好，这是女声的语音测试。";
+        const voiceIsMale = isMaleVoice(tempVoice);
+        const testText = voiceIsMale ? "你好，这是男声的语音测试。" : "你好，这是女声的语音测试。";
         
         speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(testText);
@@ -1420,6 +1447,7 @@
         utter.voice = tempVoice;
         utter.rate = getOptimalRate('zh-CN');
         utter.pitch = getOptimalPitch('zh-CN');
+        utter.volume = 1.0;
         
         utter.onstart = () => {
             console.log('Speech started, using voice:', tempVoice.name);
@@ -1432,11 +1460,16 @@
             alert('语音播放出错: ' + e.error);
         };
         
-        speechSynthesis.speak(utter);
+        try {
+            speechSynthesis.speak(utter);
+        } catch (err) {
+            console.error('speak() failed:', err);
+            alert('语音播放失败，请刷新页面重试');
+        }
         
         const info = document.getElementById("currentVoiceInfo");
         if (info) {
-            const genderTag = isMaleVoice ? '男声 ♂' : '女声 ♀';
+            const genderTag = voiceIsMale ? '男声 ♂' : '女声 ♀';
             info.innerHTML = `<strong>当前选择：</strong>${genderTag} | 使用语音：<span style="color:#10b981;font-weight:bold">${escapeHtml(tempVoice.name)}</span>`;
         }
     }
