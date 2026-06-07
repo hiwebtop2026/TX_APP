@@ -638,14 +638,31 @@
 
     function isMaleVoice(voice) {
         const nameLower = voice.name.toLowerCase();
+        const vlang = (voice.lang || '').toLowerCase();
+        
+        // 优先检查语言是否为中文
+        const isZh = vlang.startsWith('zh') || vlang.includes('cn');
+        
+        // 男声模式
         const malePatterns = [
             /^.*male.*$/i, /^.*man.*$/i, /^.*boy.*$/i,
             /yunyang/i, /yunxi/i, /yunjian/i, /yunxia/i, /kangkang/i,
             /david/i, /alex/i, /guy/i, /daniel/i, /james/i, /john/i, /tom/i,
             /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaowei/i, /jiawei/i,
             /li-mu/i, /limu/i, /ji-hong/i, /jihong/i,
-            /siri声音1/i, /声音1/i, /siri.*男/i
+            /siri.*1$/i, /siri声音1/i, /声音1/i, /siri.*男/i
         ];
+        
+        // 对于中文语音，更宽松的匹配
+        if (isZh) {
+            // 检查是否包含 "声音1" 或 "siri" + 数字1
+            if (/声音1/i.test(voice.name) || 
+                /siri.*1/i.test(voice.name) ||
+                /siri.*male/i.test(voice.name.toLowerCase())) {
+                return true;
+            }
+        }
+        
         return malePatterns.some(p => p.test(nameLower));
     }
 
@@ -669,13 +686,15 @@
             return cachedVoices.length > 0 ? cachedVoices[0] : null;
         }
 
-        const preferredMaleNames = ['Siri声音1', 'Siri 声音1', 'Siri 男声', 'Siri Male', 
+        const preferredMaleNames = ['Siri声音1', 'Siri 声音1', 'Siri 男声', 'Siri Male',
+            'Siri Voice 1', 'Voice 1', 'Siri_1', '声音1',
             'YunyangNeural', 'Yunyang', 'Yunxi', 'Kangkang', 'KangkangNeural',
             'Li-mu', 'Li-mu-compact', 'Ji-hong', 'Limu', 'Jihong',
             'David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel'];
 
         const preferredFemaleNames = ['Siri声音2', 'Siri 声音2', 'Siri 女声', 'Siri Female',
-            'XiaoxiaoNeural', 'Xiaoxiao', 'Xiaoyi', 'XiaoyiNeural', 'Yaoyao', 'YaoyaoNeural', 
+            'Siri Voice 2', 'Voice 2', 'Siri_2', '声音2',
+            'XiaoxiaoNeural', 'Xiaoxiao', 'Xiaoyi', 'XiaoyiNeural', 'Yaoyao', 'YaoyaoNeural',
             'Huihui', 'HuihuiNeural', 'Zhiyu', 'Ting-Ting', 'Yu-shu', 'Tian-Tian', 'Mei-Jia',
             'Samantha', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
 
