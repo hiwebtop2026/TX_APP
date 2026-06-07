@@ -596,75 +596,87 @@
     }
 
     function isFemaleVoice(voice) {
-        const femaleKeywords = [
-            'female', 'woman', 'girl', 
-            'xiao', 'yaoyao', 'xiaoxiao', 'hui', 'ting', 'zira', 'samantha', 'luna', 'huihui', 'tingting', 'yaoyao', 'xiaoxiao',
-            'zhiyu', 'yundai', 'xiaoyan', 'qiao', 'yao', 'xi', 'ling', 'lan', 'mei', 'jing',
-            'jenny', 'aria', 'nanami', 'hiu', 'sara', 'mary', 'susan', 'kate', 'emma', 'olivia',
-            '女', '晓', '瑶', '婷', '惠', '晓燕', '婷婷', '玲', '兰', '梅', '静'
-        ];
         const nameLower = voice.name.toLowerCase();
-        return femaleKeywords.some(k => nameLower.includes(k.toLowerCase()));
+        const femalePatterns = [
+            /^.*female.*$/i, /^.*woman.*$/i, /^.*girl.*$/i,
+            /yaoyao/i, /xiaoxiao/i, /huihui/i, /tingting/i, /zira/i, /samantha/i, /luna/i,
+            /zhiyu/i, /yundai/i, /xiaoyan/i, /qiaoyan/i, /xiuxiu/i, /xiaohan/i,
+            /jenny/i, /aria/i, /nanami/i, /hiu/i, /sara/i, /mary/i, /susan/i, /kate/i, /emma/i, /olivia/i,
+            /mei.*lan/i, /ling/i, /bai.*ling/i, /ting/i
+        ];
+        return femalePatterns.some(p => p.test(nameLower));
     }
 
     function isMaleVoice(voice) {
-        const maleKeywords = [
-            'male', 'man', 'boy', 
-            'yunyang', 'kangkang', 'david', 'alex', 'danny', 'yunxi', 'jian', 'hao', 'yunjian', 'yunhao', 'yuncai',
-            'kangkang', 'yunyang', 'xiaojun', 'xiaokang', 'xiaoyong', 'fei', 'jie',
-            'guy', 'daniel', 'james', 'john', 'tom', 'michael', 'william', 'richard', 'charles', 'joseph', 'christopher',
-            'yukai', 'yuming', 'xiaohan', 'xiaoguang', 'xiaowei',
-            '男', '云', '康', '浩', '健', '军', '勇', '杰', '飞', '伟', '宇', '明', '华', '强'
-        ];
         const nameLower = voice.name.toLowerCase();
-        return maleKeywords.some(k => nameLower.includes(k.toLowerCase()));
+        const malePatterns = [
+            /^.*male.*$/i, /^.*man.*$/i, /^.*boy.*$/i,
+            /david/i, /alex/i, /yiyun/i, /yunjian/i, /yuncai/i,
+            /yunyang/i, /kangkang/i, /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaofei/i,
+            /yukai/i, /yuming/i, /xiaohan/i, /xiaoguang/i, /xiaowei/i, /jiayou/i,
+            /guy/i, /daniel/i, /james/i, /john/i, /tom/i, /michael/i, /william/i, /richard/i,
+            /charles/i, /joseph/i, /christopher/i, /ryan/i, /benjamin/i
+        ];
+        return malePatterns.some(p => p.test(nameLower));
     }
 
     function getBestVoice(lang, gender) {
         const langVoices = cachedVoices.filter(v => v.lang.startsWith(lang));
-        if (!langVoices.length) return null;
+        if (!langVoices.length) {
+            console.warn('No voices found for lang:', lang);
+            return null;
+        }
 
-        const preferredNames = lang === 'zh-CN' 
-            ? gender === 'female' 
-                ? ['YaoyaoNeural', 'XiaoxiaoNeural', 'Yaoyao', 'Xiaoxiao', 'Microsoft Yaoyao', 'Microsoft Xiaoxiao', 'Google 普通话', 'Zhiyu', 'Huihui', 'HuihuiNeural', 'YunDaiNeural', 'XiaoyanNeural']
-                : ['YunyangNeural', 'KangkangNeural', 'YunxiNeural', 'Yunyang', 'Kangkang', 'Yunxi', 'Microsoft Yunyang', 'Microsoft Kangkang', 'Microsoft Yunxi', 'Microsoft Kangkang', 'YunJianNeural', 'Yun HaoNeural', 'YunCaiNeural', 'XiaojunNeural', 'JiaweiNeural', 'XiaorunNeural']
-            : gender === 'female'
-                ? ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Microsoft Zira Desktop', 'Jenny', 'Aria', 'Nanami', 'Hiu', 'Sara', 'Microsoft Sara', 'Natasha', 'Caroline']
-                : ['Alex', 'Google UK English Male', 'Microsoft David', 'Microsoft David Desktop', 'Guy', 'Daniel', 'James', 'John', 'Tom', 'Michael', 'Christopher', 'Richard'];
+        const preferredMaleNames = lang === 'zh-CN' 
+            ? ['YunyangNeural', 'KangkangNeural', 'YunxiNeural', 'Yunyang', 'Kangkang', 'Yunxi', 
+               'Microsoft Yunyang', 'Microsoft Kangkang', 'Microsoft Yunxi', 
+               'YunJianNeural', 'YunHaoNeural', 'YunCaiNeural', 'YunJiaNeural',
+               'XiaojunNeural', 'Xiaojun', 'JiaweiNeural', 'Jiawei', 'XiaorunNeural', 'Xiaorun']
+            : ['David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel', 'James', 'John'];
 
-        for (const name of preferredNames) {
+        const preferredFemaleNames = lang === 'zh-CN' 
+            ? ['YaoyaoNeural', 'XiaoxiaoNeural', 'Yaoyao', 'Xiaoxiao', 'Microsoft Yaoyao', 'Microsoft Xiaoxiao', 
+               'Google 普通话', 'Zhiyu', 'Huihui', 'HuihuiNeural', 'YunDaiNeural', 'XiaoyanNeural']
+            : ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
+
+        const targetNames = gender === 'male' ? preferredMaleNames : preferredFemaleNames;
+        
+        for (const name of targetNames) {
             const voice = langVoices.find(v => v.name.toLowerCase().includes(name.toLowerCase()));
-            if (voice) return voice;
+            if (voice) {
+                console.log(`Voice selected: "${voice.name}" for gender: ${gender}`);
+                return voice;
+            }
         }
 
-        const femaleVoices = langVoices.filter(v => isFemaleVoice(v));
-        const maleVoices = langVoices.filter(v => isMaleVoice(v));
+        const allVoicesByGender = langVoices.filter(v => {
+            if (gender === 'male') return isMaleVoice(v);
+            return isFemaleVoice(v);
+        });
 
-        if (gender === 'female' && femaleVoices.length) {
-            const neuralFemale = femaleVoices.find(v => v.name.toLowerCase().includes('neural'));
-            if (neuralFemale) return neuralFemale;
-            const desktopFemale = femaleVoices.find(v => v.name.toLowerCase().includes('desktop'));
-            if (desktopFemale) return desktopFemale;
-            return femaleVoices[0];
+        if (allVoicesByGender.length) {
+            const neuralVoice = allVoicesByGender.find(v => /neural/i.test(v.name));
+            if (neuralVoice) {
+                console.log(`Voice selected (neural): "${neuralVoice.name}" for gender: ${gender}`);
+                return neuralVoice;
+            }
+            const desktopVoice = allVoicesByGender.find(v => /desktop/i.test(v.name));
+            if (desktopVoice) {
+                console.log(`Voice selected (desktop): "${desktopVoice.name}" for gender: ${gender}`);
+                return desktopVoice;
+            }
+            console.log(`Voice selected (fallback): "${allVoicesByGender[0].name}" for gender: ${gender}`);
+            return allVoicesByGender[0];
         }
-        if (gender === 'male' && maleVoices.length) {
-            const neuralMale = maleVoices.find(v => v.name.toLowerCase().includes('neural'));
-            if (neuralMale) return neuralMale;
-            const desktopMale = maleVoices.find(v => v.name.toLowerCase().includes('desktop'));
-            if (desktopMale) return desktopMale;
-            return maleVoices[0];
+
+        const defaultVoice = langVoices.find(v => v.default);
+        if (defaultVoice) {
+            console.log(`Voice selected (default): "${defaultVoice.name}" for gender: ${gender}`);
+            return defaultVoice;
         }
-
-        const neuralVoice = langVoices.find(v => v.name.toLowerCase().includes('neural'));
-        if (neuralVoice) return neuralVoice;
-
-        const googleVoice = langVoices.find(v => v.name.includes('Google'));
-        if (googleVoice) return googleVoice;
-
-        const microsoftVoice = langVoices.find(v => v.name.includes('Microsoft'));
-        if (microsoftVoice) return microsoftVoice;
-
-        return langVoices.find(v => v.default) || langVoices[0];
+        
+        console.log(`Voice selected (first): "${langVoices[0].name}" for gender: ${gender}`);
+        return langVoices[0];
     }
 
     function getOptimalRate(lang) {
@@ -676,9 +688,9 @@
 
     function getOptimalPitch(lang) {
         if (lang === 'zh-CN') {
-            return Math.min(Math.max(appSettings.rate * 0.85, 0.6), 1.0);
+            return 1.0;
         }
-        return appSettings.rate;
+        return 1.0;
     }
 
     async function speakText(text) {
@@ -1330,15 +1342,35 @@
         const testText = gender === 'male' ? "你好，这是男声的语音测试。" : "你好，这是女声的语音测试。";
         const tempVoice = getBestVoice('zh-CN', gender);
         
+        if (!tempVoice) {
+            alert('未找到可用的中文语音，请检查系统设置');
+            return;
+        }
+        
         speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(testText);
         utter.lang = 'zh-CN';
-        if (tempVoice) {
-            utter.voice = tempVoice;
-        }
+        utter.voice = tempVoice;
         utter.rate = getOptimalRate('zh-CN');
         utter.pitch = getOptimalPitch('zh-CN');
+        
+        utter.onstart = () => {
+            console.log('Speech started, using voice:', tempVoice.name);
+        };
+        utter.onend = () => {
+            console.log('Speech ended');
+        };
+        utter.onerror = (e) => {
+            console.error('Speech error:', e);
+            alert('语音播放出错: ' + e.error);
+        };
+        
         speechSynthesis.speak(utter);
+        
+        const info = document.getElementById("currentVoiceInfo");
+        if (info) {
+            info.innerHTML = `<strong>当前选择：</strong>${gender === 'female' ? '女声 ♀' : '男声 ♂'} | 使用语音：<span style="color:#10b981;font-weight:bold">${escapeHtml(tempVoice.name)}</span>`;
+        }
     }
 
     if(!localStorage.getItem('studentName')) localStorage.setItem('studentName', prompt("欢迎使用听写助手，请输入你的名字", "小学霸") || "同学");
