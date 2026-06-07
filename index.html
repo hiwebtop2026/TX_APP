@@ -1413,6 +1413,13 @@
         console.log('Female voices:', femaleVoices.length, femaleVoices.map(v => v.name));
         console.log('Unknown voices:', unknownVoices.length, unknownVoices.map(v => v.name));
         
+        // 如果选择了男声但没有男声语音，显示警告
+        const genderSelect = document.getElementById('settingVoiceGender');
+        const currentGender = genderSelect?.value || 'female';
+        if (currentGender === 'male' && maleVoices.length === 0) {
+            console.warn('WARNING: No male voices available, but male gender selected');
+        }
+        
         // 添加选项：女声在前
         femaleVoices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         maleVoices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
