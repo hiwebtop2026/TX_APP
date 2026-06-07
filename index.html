@@ -602,7 +602,9 @@
             /xiaoxiao/i, /xiaoyi/i, /xiaoxuan/i, /yaoyao/i, /huihui/i, /tingting/i,
             /zira/i, /samantha/i, /luna/i, /zhiyu/i, /yundai/i, /xiaoyan/i, /qiaoyan/i,
             /xiuxiu/i, /nanami/i, /hiu/i, /sara/i, /mary/i, /susan/i, /kate/i, /emma/i, /olivia/i,
-            /jenny/i, /aria/i, /ting/i
+            /jenny/i, /aria/i, /ting/i,
+            /ting-ting/i, /yu-shu/i, /yushu/i, /tian-tian/i, /tiantian/i, /mei-jia/i, /meijia/i,
+            /siri.*女/i, /语舒/i
         ];
         return femalePatterns.some(p => p.test(nameLower));
     }
@@ -615,7 +617,8 @@
             /david/i, /alex/i, /guy/i, /daniel/i, /james/i, /john/i, /tom/i,
             /michael/i, /william/i, /richard/i, /charles/i, /joseph/i, /christopher/i,
             /xiaojun/i, /xiaokang/i, /xiaoyong/i, /xiaowei/i, /jiawei/i, /xiaorun/i,
-            /yukai/i, /yuming/i, /yuncai/i, /jiayou/i
+            /yukai/i, /yuming/i, /yuncai/i, /jiayou/i,
+            /li-mu/i, /limu/i, /ji-hong/i, /jihong/i, /siri.*男/i
         ];
         return malePatterns.some(p => p.test(nameLower));
     }
@@ -631,14 +634,19 @@
             ? ['zh-CN-YunyangNeural', 'YunyangNeural', 'zh-CN-YunxiNeural', 'YunxiNeural',
                'zh-CN-YunjianNeural', 'YunjianNeural', 'zh-CN-YunxiaNeural', 'YunxiaNeural',
                'Yunyang', 'Yunxi', 'Yunjian', 'Yunxia', 'Microsoft Yunyang', 'Microsoft Yunxi',
-               'Microsoft Yunjian', 'Microsoft Yunxia', 'KangkangNeural', 'Kangkang']
+               'Microsoft Yunjian', 'Microsoft Yunxia', 'KangkangNeural', 'Kangkang',
+               'Li-mu', 'Li-mu-compact', 'com.apple.ttsbundle.Li-mu', 'Ji-hong', 'Siri 男声']
             : ['David', 'Microsoft David', 'Alex', 'Google UK English Male', 'Guy', 'Daniel', 'James', 'John'];
 
         const preferredFemaleNames = lang === 'zh-CN' 
             ? ['zh-CN-XiaoxiaoNeural', 'XiaoxiaoNeural', 'zh-CN-XiaoyiNeural', 'XiaoyiNeural',
                'zh-CN-XiaoxuanNeural', 'XiaoxuanNeural', 'Xiaoxiao', 'Xiaoyi', 'Xiaoxuan',
                'Microsoft Xiaoxiao', 'Microsoft Xiaoyi', 'Microsoft Xiaoxuan', 'YaoyaoNeural',
-               'Yaoyao', 'Microsoft Yaoyao', 'HuihuiNeural', 'Huihui', 'Zhiyu']
+               'Yaoyao', 'Microsoft Yaoyao', 'HuihuiNeural', 'Huihui', 'Zhiyu',
+               'Ting-Ting', 'Ting-Ting-compact', 'com.apple.ttsbundle.Ting-Ting',
+               'Yu-shu', 'Yu-shu-compact', 'com.apple.ttsbundle.Yu-shu',
+               'Tian-Tian', 'Tian-Tian-compact', 'com.apple.ttsbundle.Tian-Tian',
+               'Mei-Jia', 'Mei-Jia-compact', 'Siri 女声', '语舒']
             : ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Zira', 'Jenny', 'Aria', 'Nanami'];
 
         const targetNames = gender === 'male' ? preferredMaleNames : preferredFemaleNames;
