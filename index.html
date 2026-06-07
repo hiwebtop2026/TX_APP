@@ -479,6 +479,27 @@
             <div style="margin-top: 16px;"><button class="btn btn-success" id="startSelectedCustomBtn">🎧 使用当前词库听写</button></div>
         </div>
     </div>
+
+    <!-- 词库编辑模态框 -->
+    <div id="editSetModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;">
+        <div style="background:white;border-radius:12px;width:90%;max-width:400px;max-height:80vh;overflow:hidden;">
+            <div class="header" style="padding:12px 16px;border-bottom:1px solid #eee;"><span style="flex:1;">✏️ 编辑词库</span><button onclick="closeEditModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">×</button></div>
+            <div style="padding:16px;">
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;margin-bottom:4px;font-weight:bold;">词库名称</label>
+                    <input type="text" id="editSetName" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="display:block;margin-bottom:4px;font-weight:bold;">词语列表（每行一个词）</label>
+                    <textarea id="editSetWords" rows="8" placeholder="苹果&#10;香蕉&#10;apple&#10;happy" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;"></textarea>
+                </div>
+                <div class="flex-row" style="gap:10px;">
+                    <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+                    <button class="btn btn-primary" onclick="saveEditSet()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -512,44 +533,164 @@
         renderRecordList();
     }
 
-    // 语音
+    // 语音合成优化模块
     let speechCancelFlag = false;
     let speechTimeoutId = null;
+    let cachedVoices = [];
+    let voicesLoaded = false;
+
+    async function loadVoices() {
+        return new Promise((resolve) => {
+            const voices = speechSynthesis.getVoices();
+            if (voices.length) {
+                cachedVoices = voices;
+                voicesLoaded = true;
+                return resolve(voices);
+            }
+            let retry = 0;
+            const timer = setInterval(() => {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length || ++retry > 50) {
+                    clearInterval(timer);
+                    cachedVoices = voices;
+                    voicesLoaded = true;
+                    resolve(voices);
+                }
+            }, 100);
+        });
+    }
+
+    function preprocessText(text) {
+        if (!text) return text;
+        text = text.replace(/(\d+)℃/g, (_, num) => `${convertNumberToChinese(num)}摄氏度`);
+        text = text.replace(/(\d+)%/g, (_, num) => `${convertNumberToChinese(num)}百分之`);
+        text = text.replace(/(\d+)倍/g, (_, num) => `${convertNumberToChinese(num)}倍`);
+        text = text.replace(/(\d+)/g, (_, num) => {
+            if (num.length <= 4 && !/^\d+$/.test(text)) {
+                return convertNumberToChinese(num);
+            }
+            return num;
+        });
+        return text;
+    }
+
+    function convertNumberToChinese(num) {
+        const chars = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+        const units = ['', '十', '百', '千', '万', '亿'];
+        let result = '';
+        let str = String(num);
+        let len = str.length;
+        for (let i = 0; i < len; i++) {
+            const digit = parseInt(str[i]);
+            const unit = units[len - 1 - i];
+            if (digit === 0) {
+                if (result && !result.endsWith('零')) result += '零';
+            } else {
+                result += chars[digit] + unit;
+            }
+        }
+        result = result.replace(/零+$/, '');
+        if (result.startsWith('一十')) result = result.slice(1);
+        return result || '零';
+    }
+
+    function getBestVoice(lang, gender) {
+        const langVoices = cachedVoices.filter(v => v.lang.startsWith(lang));
+        if (!langVoices.length) return null;
+        
+        const preferredNames = lang === 'zh-CN' 
+            ? gender === 'female' 
+                ? ['Microsoft Yaoyao', 'Microsoft Xiaoxiao', 'Google 普通话', 'Zhiyu', 'Luna']
+                : ['Microsoft Yunyang', 'Microsoft Kangkang', 'Google 普通话', 'Danny']
+            : gender === 'female'
+                ? ['Samantha', 'Google UK English Female', 'Microsoft Zira', 'Google US English Female']
+                : ['Alex', 'Google UK English Male', 'Microsoft David', 'Google US English Male'];
+
+        for (const name of preferredNames) {
+            const voice = langVoices.find(v => v.name.includes(name));
+            if (voice) return voice;
+        }
+
+        const neuralVoice = langVoices.find(v => v.name.includes('Neural'));
+        if (neuralVoice) return neuralVoice;
+
+        const googleVoice = langVoices.find(v => v.name.includes('Google'));
+        if (googleVoice) return googleVoice;
+
+        const microsoftVoice = langVoices.find(v => v.name.includes('Microsoft'));
+        if (microsoftVoice) return microsoftVoice;
+
+        return langVoices.find(v => v.default) || langVoices[0];
+    }
+
+    function getOptimalRate(lang) {
+        if (lang === 'zh-CN') {
+            return Math.min(Math.max(appSettings.rate * 0.9, 0.6), 1.2);
+        }
+        return appSettings.rate;
+    }
+
+    function getOptimalPitch(lang) {
+        if (lang === 'zh-CN') {
+            return Math.min(Math.max(appSettings.rate * 0.85, 0.6), 1.0);
+        }
+        return appSettings.rate;
+    }
+
     async function speakText(text) {
-        if(!text) return;
+        if (!text) return;
         cancelSpeech();
         speechCancelFlag = false;
-        await new Promise(r => setTimeout(r, 60));
+        
+        if (!voicesLoaded) {
+            await loadVoices();
+        }
+
+        const processedText = preprocessText(text);
         const isChinese = /[\u4e00-\u9fa5]/.test(text);
-        let lang = isChinese ? "zh-CN" : "en-US";
-        const voices = await new Promise(resolve => { let v = speechSynthesis.getVoices(); if(v.length) resolve(v); else speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices()); });
-        let selectedVoice = null;
-        const langVoices = voices.filter(v => v.lang.startsWith(lang));
-        if(appSettings.voiceGender === "female") selectedVoice = langVoices.find(v => v.name.includes('Samantha')||v.name.includes('Google UK English Female')||v.name.includes('Microsoft Zira')||v.name.includes('女'));
-        else selectedVoice = langVoices.find(v => v.name.includes('Alex')||v.name.includes('Google UK English Male')||v.name.includes('Microsoft David'));
-        if(!selectedVoice && langVoices.length) selectedVoice = langVoices[0];
-        for(let i=0; i<appSettings.playCount; i++) {
-            if(speechCancelFlag || !dictationState.active) break;
+        const lang = isChinese ? "zh-CN" : "en-US";
+        
+        await new Promise(r => setTimeout(r, 60));
+        
+        const selectedVoice = getBestVoice(lang, appSettings.voiceGender);
+        
+        for (let i = 0; i < appSettings.playCount; i++) {
+            if (speechCancelFlag || !dictationState.active) break;
+            
             await new Promise(resolve => {
-                const utter = new SpeechSynthesisUtterance(text);
+                const utter = new SpeechSynthesisUtterance(processedText);
                 utter.lang = lang;
-                if(selectedVoice) utter.voice = selectedVoice;
-                utter.rate = appSettings.rate;
+                utter.rate = getOptimalRate(lang);
+                utter.pitch = getOptimalPitch(lang);
+                utter.volume = 1.0;
+                
+                if (selectedVoice) {
+                    utter.voice = selectedVoice;
+                }
+                
                 utter.onend = () => resolve();
                 utter.onerror = () => resolve();
+                utter.onboundary = () => {
+                    if (speechCancelFlag || !dictationState.active) {
+                        speechSynthesis.cancel();
+                    }
+                };
+                
                 speechSynthesis.speak(utter);
             });
-            if(i !== appSettings.playCount-1 && !speechCancelFlag && dictationState.active) {
+            
+            if (i !== appSettings.playCount - 1 && !speechCancelFlag && dictationState.active) {
                 await new Promise(r => {
                     speechTimeoutId = setTimeout(r, appSettings.intervalSec * 1000);
                 });
             }
         }
     }
+
     function cancelSpeech() { 
         speechCancelFlag = true; 
         speechSynthesis.cancel();
-        if(speechTimeoutId) {
+        if (speechTimeoutId) {
             clearTimeout(speechTimeoutId);
             speechTimeoutId = null;
         }
@@ -945,7 +1086,9 @@
         document.getElementById('welcomeUser').innerHTML = `👋 ${escapeHtml(localStorage.getItem('studentName')||'同学')}，记录自动保存`;
     }
 
-    // 自定义词库管理（与原逻辑一致）
+    // 自定义词库管理
+    let editingSetId = null;
+    
     function renderCustomList() {
         const container = document.getElementById("customSetList");
         if(!container) return;
@@ -954,14 +1097,55 @@
             const div = document.createElement("div");
             div.className = "flex-row";
             div.style.justifyContent = "space-between";
-            div.style.background = "#f1f5f9";
+            div.style.background = currentCustomSetId === set.id ? "#dbeafe" : "#f1f5f9";
             div.style.padding = "10px 14px";
             div.style.borderRadius = "50px";
             div.style.marginBottom = "8px";
-            div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:4px 12px;">选用</button><button class="btn" data-del="${set.id}" style="padding:4px 12px;">删除</button></div>`;
+            div.innerHTML = `<span><strong>${escapeHtml(set.name)}</strong> (${set.words.length}词)</span><div><button class="btn" data-select="${set.id}" style="padding:4px 10px;margin-right:4px;">选用</button><button class="btn" data-edit="${set.id}" style="padding:4px 10px;margin-right:4px;">编辑</button><button class="btn" data-del="${set.id}" style="padding:4px 10px;">删除</button></div>`;
             container.appendChild(div);
         });
         if(!customSets.length) container.innerHTML = "<div style='padding:12px'>暂无词库，点击新建</div>";
+    }
+
+    function editCustomSet(id) {
+        const set = customSets.find(s => s.id === id);
+        if(!set) return;
+        editingSetId = id;
+        document.getElementById("editSetName").value = set.name;
+        document.getElementById("editSetWords").value = set.words.join('\n');
+        document.getElementById("editSetModal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+        document.getElementById("editSetModal").style.display = "none";
+        editingSetId = null;
+        document.getElementById("editSetName").value = "";
+        document.getElementById("editSetWords").value = "";
+    }
+
+    function saveEditSet() {
+        if(!editingSetId) return;
+        const name = document.getElementById("editSetName").value.trim();
+        const wordsText = document.getElementById("editSetWords").value.trim();
+        
+        if(!name) {
+            alert("请输入词库名称");
+            return;
+        }
+        
+        const words = wordsText.split(/[\n,，、\s]+/).filter(w => w.trim().length > 0);
+        const uniqueWords = [...new Map(words.map(w => [w.trim(), w.trim()])).values()];
+        
+        const set = customSets.find(s => s.id === editingSetId);
+        if(set) {
+            set.name = name;
+            set.words = uniqueWords;
+            set.langType = uniqueWords.some(w => /[\u4e00-\u9fa5]/.test(w)) ? "chinese" : "english";
+            saveCustomSets();
+            renderCustomList();
+            closeEditModal();
+            alert("词库已更新");
+        }
     }
 
     function selectCustomSet(id) { currentCustomSetId = id; alert(`已选用：${customSets.find(s=>s.id===id)?.name}`); }
@@ -1032,7 +1216,7 @@
         document.getElementById("appendToCurrentBtn")?.addEventListener('click', () => appendToCurrentCustom());
         document.getElementById("newCustomSetBtn")?.addEventListener('click', () => createNewCustomSet());
         document.getElementById("startSelectedCustomBtn")?.addEventListener('click', () => startSelectedCustom());
-        document.getElementById("customSetList")?.addEventListener('click', e => { const btn = e.target; if(btn.classList.contains('btn')) { const selectId = btn.dataset.select; if(selectId) selectCustomSet(selectId); const delId = btn.dataset.del; if(delId) deleteCustomSet(delId); } });
+        document.getElementById("customSetList")?.addEventListener('click', e => { const btn = e.target; if(btn.classList.contains('btn')) { const selectId = btn.dataset.select; if(selectId) selectCustomSet(selectId); const editId = btn.dataset.edit; if(editId) editCustomSet(editId); const delId = btn.dataset.del; if(delId) deleteCustomSet(delId); } });
         document.getElementById("settingRate")?.addEventListener('input', (e) => document.getElementById("rateValue").innerText = parseFloat(e.target.value).toFixed(2));
         document.getElementById("listeningOnlyMode")?.addEventListener('change', (e) => { if(dictationState.active) alert("请在下次听写生效"); });
         document.querySelectorAll('.nav-item').forEach(nav => { nav.addEventListener('click', () => { const target = nav.dataset.page; if(target === 'records') showPage('pageRecords'); else if(target) showPage(target); }); });
