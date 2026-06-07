@@ -1151,7 +1151,9 @@
                         // 跳到下一词
                         if(dictationState.currentIndex < dictationState.wordList.length - 1) {
                             dictationState.currentIndex++;
-                            updateProgress();
+                            // 更新进度显示
+                            document.getElementById("curIdx").innerText = dictationState.currentIndex + 1;
+                            document.getElementById("sessionRemain").innerText = dictationState.wordList.length - dictationState.currentIndex;
                             console.log('Jumping to next word, index=', dictationState.currentIndex);
                             playCurrentWord();
                         } else {
